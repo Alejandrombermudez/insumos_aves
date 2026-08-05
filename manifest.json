@@ -1,0 +1,15 @@
+{
+  "name": "Apps de campo — Amazonía Emprende",
+  "short_name": "Apps AE",
+  "description": "Herramientas de campo de Amazonía Emprende: avistamiento de aves y monitoreo de siembra.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#e4ded2",
+  "theme_color": "#2f3f32",
+  "lang": "es",
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

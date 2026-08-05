@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apps de campo — Amazonía Emprende</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/icon-180.png">
+<meta name="theme-color" content="#2f3f32">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Apps AE">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@400;600;700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --verde:#2f3f32; --verde-2:#3c4f3f; --hueso:#e4ded2; --hueso-2:#f6f3ec;
+    --ambar:#e1a644; --ambar-osc:#c98f2e; --texto:#26302a; --borde:#d7cfc0;
+    --card:#fbf9f4; --salvia:#afbdb2; --tenue:#6b6459;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:'Poppins',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    background:var(--hueso); color:var(--texto); line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh; display:flex; flex-direction:column;
+  }
+  h1,h2,h3,.marca b{font-family:'Josefin Sans',system-ui,sans-serif; letter-spacing:.02em}
+
+  header{
+    background:var(--verde); color:var(--hueso);
+    padding:16px 18px; display:flex; align-items:center; gap:14px;
+    box-shadow:0 2px 10px rgba(30,26,24,.15);
+  }
+  header img{width:42px; height:42px; border-radius:10px; flex:0 0 auto}
+  .marca b{
+    display:block; font-weight:700; text-transform:uppercase;
+    letter-spacing:.06em; font-size:17px; line-height:1.15;
+  }
+  .marca span{font-size:12px; color:var(--salvia)}
+
+  main{flex:1; width:100%; max-width:920px; margin:0 auto; padding:28px 16px 40px}
+  .intro{margin:0 0 24px}
+  .intro h1{margin:0 0 6px; font-size:27px; color:var(--verde); font-weight:600}
+  .intro p{margin:0; color:var(--tenue); font-size:14.5px; max-width:60ch}
+
+  .apps{display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+  .app{
+    display:flex; flex-direction:column; gap:12px;
+    background:var(--card); border:1px solid var(--borde); border-radius:16px;
+    padding:20px; text-decoration:none; color:inherit;
+    box-shadow:0 1px 2px rgba(30,26,24,.06),0 4px 14px rgba(30,26,24,.06);
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .app:hover,.app:focus-visible{
+    transform:translateY(-3px); border-color:var(--ambar);
+    box-shadow:0 6px 22px rgba(30,26,24,.14); outline:none;
+  }
+  .app-top{display:flex; align-items:center; gap:14px}
+  .app-top img{width:56px; height:56px; border-radius:14px; flex:0 0 auto}
+  .app-top h2{margin:0; font-size:20px; color:var(--verde); font-weight:600; line-height:1.2}
+  .app-top .que{font-size:12.5px; color:var(--tenue); margin-top:2px}
+  .app p{margin:0; font-size:14px; color:#4b463d}
+  .etiquetas{display:flex; flex-wrap:wrap; gap:6px; margin-top:auto; padding-top:4px}
+  .etiqueta{
+    background:var(--hueso-2); border:1px solid var(--borde); border-radius:20px;
+    padding:3px 11px; font-size:12px; color:var(--verde); font-weight:500;
+  }
+  .entrar{
+    display:inline-flex; align-items:center; gap:7px; align-self:flex-start;
+    background:var(--ambar); color:var(--verde); border:1px solid var(--ambar-osc);
+    border-radius:10px; padding:9px 16px; font-weight:600; font-size:14px;
+  }
+  .app:hover .entrar{background:var(--ambar-osc); color:#fff}
+
+  .nota{
+    margin-top:26px; background:var(--hueso-2); border:1px solid var(--borde);
+    border-radius:14px; padding:16px 18px; font-size:13.5px; color:#4b463d;
+  }
+  .nota h3{margin:0 0 8px; font-size:15px; color:var(--verde); font-weight:600}
+  .nota ul{margin:0; padding-left:20px}
+  .nota li{margin-bottom:5px}
+  .nota li:last-child{margin-bottom:0}
+  .nota b{color:var(--texto)}
+
+  #estado{
+    display:inline-flex; align-items:center; gap:7px; margin-top:16px;
+    font-size:12.5px; color:var(--tenue);
+  }
+  #estado .punto{width:8px; height:8px; border-radius:50%; background:var(--borde); flex:0 0 auto}
+  #estado.listo .punto{background:#3f7d52}
+
+  footer{
+    text-align:center; color:var(--tenue); font-size:12px;
+    padding:20px 16px 28px; border-top:1px solid var(--borde);
+  }
+  @media (max-width:600px){
+    main{padding:22px 14px 32px}
+    .intro h1{font-size:23px}
+    header img{width:38px;height:38px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <img src="./icons/icon-192.png" alt="">
+  <div class="marca">
+    <b>Amazonía Emprende</b>
+    <span>Herramientas de campo · Florencia, Caquetá</span>
+  </div>
+</header>
+
+<main>
+  <div class="intro">
+    <h1>¿A dónde vas hoy?</h1>
+    <p>Elige la herramienta que necesitas. Las dos funcionan en el celular, sin internet, y guardan la información en el mismo dispositivo donde las usas.</p>
+  </div>
+
+  <div class="apps">
+
+    <a class="app" href="./aves/">
+      <div class="app-top">
+        <img src="./aves/icon-192.png" alt="">
+        <div>
+          <h2>Avistamiento de Aves</h2>
+          <div class="que">Monitoreo de fauna</div>
+        </div>
+      </div>
+      <p>Registra los avistamientos durante el monitoreo: especie, lugar, individuos, estratificación y comportamiento, con historial y resumen.</p>
+      <div class="etiquetas">
+        <span class="etiqueta">1040 especies de Caquetá</span>
+        <span class="etiqueta">Historial + CSV</span>
+      </div>
+      <span class="entrar">Entrar →</span>
+    </a>
+
+    <a class="app" href="./insumos/">
+      <div class="app-top">
+        <img src="./insumos/icon-192.png" alt="">
+        <div>
+          <h2>Monitoreo de Siembra</h2>
+          <div class="que">Insumos, gastos y rendimientos</div>
+        </div>
+      </div>
+      <p>Controla por lote y núcleo los insumos consumidos, los jornales y el rendimiento de cada actividad, con inventario de bodegas y traslados.</p>
+      <div class="etiquetas">
+        <span class="etiqueta">Lotes y núcleos</span>
+        <span class="etiqueta">Bodegas e inventario</span>
+      </div>
+      <span class="entrar">Entrar →</span>
+    </a>
+
+  </div>
+
+  <div class="nota">
+    <h3>Antes de empezar</h3>
+    <ul>
+      <li>Son <b>demos</b>: sirven para probarlas y proponer ajustes. No están conectadas a ningún servidor.</li>
+      <li>Los datos se guardan <b>en este dispositivo</b>, en este navegador. No se sincronizan entre celulares ni con el PC.</li>
+      <li>Para pasar datos a otro equipo, usa <b>Exportar / Importar respaldo (JSON)</b> dentro de cada app.</li>
+      <li>Puedes instalarlas: en Android, menú ⋮ → <b>Añadir a pantalla de inicio</b>; en iPhone, con <b>Safari</b>, Compartir → <b>Añadir a pantalla de inicio</b>.</li>
+    </ul>
+    <div id="estado"><span class="punto"></span><span id="estado-txt">Preparando el uso sin internet…</span></div>
+  </div>
+</main>
+
+<footer>
+  Amazonía Emprende — Restauramos la biodiversidad de los ecosistemas con especies forestales nativas.
+</footer>
+
+<script>
+  const estado = document.getElementById('estado');
+  const estadoTxt = document.getElementById('estado-txt');
+
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('/sw.js').then(() => {
+      if(navigator.serviceWorker.controller){
+        estado.classList.add('listo');
+        estadoTxt.textContent = 'Listas para usar sin internet.';
+      } else {
+        estadoTxt.textContent = 'Guardando las apps para usarlas sin internet…';
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          estado.classList.add('listo');
+          estadoTxt.textContent = 'Listas para usar sin internet.';
+        });
+      }
+    }).catch(() => {
+      estadoTxt.textContent = 'Ábrelas una vez con internet para poder usarlas después sin conexión.';
+    });
+  } else {
+    estadoTxt.textContent = 'Este navegador no guarda las apps para uso sin conexión.';
+  }
+</script>
+</body>
+</html>
