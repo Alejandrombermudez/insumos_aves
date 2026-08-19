@@ -4,10 +4,12 @@ Dos herramientas de campo en un solo sitio, con una pantalla de inicio para eleg
 
 | App | Ruta | Para qué |
 |---|---|---|
-| 🦜 **Avistamiento de Aves** | `/aves/` | Registrar avistamientos durante el monitoreo (1040 especies de Caquetá), con historial, resumen y export a CSV. |
+| 🦜 **Avistamiento de Aves** | `/aves/` | Registrar avistamientos durante el monitoreo (1040 especies de Caquetá), con punto GPS por avistamiento, historial, curva de acumulación de especies y export a CSV o GeoJSON. |
 | 🌱 **Monitoreo de Siembra** | `/insumos/` | Insumos, gastos y rendimientos por lote y núcleo, con inventario de bodegas, compras con factura y traslados con aceptación. |
 
-> **Son demos.** No están conectadas a Supabase ni a ningún servidor. Cada app guarda su información en el navegador del dispositivo donde se usa (`localStorage`), y **no se sincroniza** entre celulares ni con el PC. Para mover datos, cada app tiene exportar/importar respaldo en JSON.
+> **Son demos.** No están conectadas a Supabase ni a ningún servidor. Cada app guarda su información en el dispositivo donde se usa, y **no se sincroniza** entre celulares ni con el PC. Para mover datos, cada app tiene exportar/importar respaldo en JSON.
+>
+> La app de aves guarda por duplicado (`localStorage` + `IndexedDB`) y las reconcilia al abrir, para que un registro no se pierda si el navegador libera una de las dos copias.
 
 ## Estructura
 

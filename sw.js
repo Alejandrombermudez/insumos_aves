@@ -2,7 +2,7 @@
    Guarda las dos apps en el dispositivo para que funcionen sin internet.
    Sube el número de VERSION cuando cambies algo, para que se reemplace lo guardado. */
 
-const VERSION = 'ae-campo-v1';
+const VERSION = 'ae-campo-v2';
 const CACHE = `${VERSION}`;
 
 /* Todo lo que hace falta para que las apps abran sin conexión. */

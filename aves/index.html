@@ -116,6 +116,36 @@
     padding:7px 12px; font-size:.85rem; font-weight:600;
   }
   .inicio:hover{background:rgba(246,243,236,.14);}
+  .banner{margin:0 0 14px; padding:10px 14px; border-radius:8px; font-size:.88rem; line-height:1.45;}
+  .banner-ok{background:#eaf3ea; border:1px solid #b9d3bd; color:var(--verde);}
+  .banner-error{background:#f8e9e9; border:1px solid #e0b6b6; color:var(--rojo); font-weight:600;}
+  #toast{position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:var(--verde);
+    color:var(--hueso); padding:11px 18px; border-radius:24px; font-size:.88rem;
+    box-shadow:0 6px 18px rgba(0,0,0,.22); z-index:60; max-width:90vw; text-align:center;}
+  table.estado th{width:40%; text-transform:none; letter-spacing:0; font-size:.82rem; vertical-align:top; padding-top:9px;}
+  table.estado code{background:var(--hueso); padding:1px 5px; border-radius:4px; font-size:.78rem; word-break:break-all;}
+  table.estado .hint{margin-top:4px;}
+  .pill{display:inline-block; border-radius:10px; padding:1px 9px; font-size:.75rem; font-weight:600;}
+  .pill.ok{background:#dfeee1; color:#2f5b38;}
+  .pill.warn{background:#f7e6c9; color:#8a5f10;}
+  .gps-caja{border:1px solid var(--borde); border-radius:8px; padding:10px 12px; background:var(--hueso); font-size:.85rem;}
+  .gps-caja .titulo{font-weight:600; color:var(--verde); display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .gps-luz{width:9px; height:9px; border-radius:50%; display:inline-block; background:#9aa39b; flex-shrink:0;}
+  .gps-luz.ok{background:#4a8c5a;}
+  .gps-luz.buscando{background:var(--ambar); animation:latido 1.2s infinite;}
+  .gps-luz.mal{background:var(--rojo);}
+  @keyframes latido{0%,100%{opacity:1}50%{opacity:.25}}
+  .mono{font-family:ui-monospace,Consolas,'Courier New',monospace;}
+  .gps-coords{font-size:.8rem; color:#4a5249; margin-top:4px;}
+  .grafico svg{width:100%; height:auto; display:block;}
+  .grafico .rejilla{stroke:#ece7db; stroke-width:1;}
+  .grafico .eje{stroke:var(--borde); stroke-width:1.2;}
+  .grafico .etiqueta{fill:#6b7368; font-size:11px;}
+  .grafico .etiqueta-eje{fill:var(--verde); font-size:11px; font-weight:600;}
+  .grafico .area{fill:var(--ambar); opacity:.15;}
+  .grafico .linea{fill:none; stroke:var(--verde); stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round;}
+  .grafico .punto{fill:var(--ambar); stroke:var(--verde); stroke-width:1.5;}
+  td .coord{font-size:.78rem;}
 </style>
 </head>
 <body>
@@ -135,6 +165,8 @@
 </nav>
 
 <main>
+
+  <div id="banner" class="banner oculto"></div>
 
   <!-- ===================== REGISTRO ===================== -->
   <section id="tab-registro">
@@ -202,6 +234,11 @@
           <textarea id="notas" placeholder="Condiciones climáticas, distancia, detalles del avistamiento..."></textarea>
         </div>
 
+        <div class="campo">
+          <label>Ubicación (GPS del dispositivo)</label>
+          <div class="gps-caja" id="gps-caja"></div>
+        </div>
+
         <button type="submit" class="btn ambar">Guardar avistamiento</button>
       </form>
     </div>
@@ -216,13 +253,14 @@
         <input type="text" id="filtro-especie" placeholder="Filtrar por especie...">
         <button class="btn ghost small" id="btn-limpiar-filtros">Limpiar filtros</button>
         <button class="btn small" id="btn-exportar-csv">⬇ Exportar CSV</button>
+        <button class="btn small" id="btn-exportar-geojson">⬇ Exportar GeoJSON</button>
       </div>
       <div style="overflow-x:auto;">
         <table id="tabla-historial">
           <thead>
             <tr>
               <th>Fecha/hora</th><th>Especie</th><th>Lugar</th><th>Ind.</th>
-              <th>Estrato</th><th>Comport.</th><th>Observador(es)</th><th>Notas</th><th></th>
+              <th>Estrato</th><th>Comport.</th><th>Observador(es)</th><th>Notas</th><th>GPS</th><th></th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -238,6 +276,16 @@
       <h2>Resumen</h2>
       <div id="stats-generales"></div>
     </div>
+    <div class="card">
+      <h3>Curva de acumulación de especies</h3>
+      <div class="toolbar">
+        <select id="acum-lugar"><option value="">Todos los lugares</option></select>
+      </div>
+      <div class="grafico" id="grafico-acumulacion"></div>
+      <div class="hint" id="acum-pie" style="margin-top:8px;"></div>
+      <div class="hint" style="margin-top:6px;">Cada punto es una jornada con registros: cuántas especies distintas se llevaban acumuladas hasta ese día. Cuando la curva se aplana, el muestreo ya está encontrando pocas especies nuevas.</div>
+    </div>
+
     <div class="card">
       <h3>Especies más avistadas</h3>
       <div id="ranking-especies"></div>
@@ -265,8 +313,14 @@
     </div>
 
     <div class="card">
+      <h2>Estado del almacenamiento</h2>
+      <p class="hint" style="margin-bottom:10px;">Todo lo que registras vive únicamente en este dispositivo, dentro de este navegador. No se envía a ningún servidor.</p>
+      <div id="estado-almacen"></div>
+    </div>
+
+    <div class="card">
       <h2>Respaldo de datos</h2>
-      <p class="hint">Los avistamientos se guardan en el navegador (localStorage) de este equipo. Usa esto para mover los datos a otro equipo o hacer respaldo.</p>
+      <p class="hint">El respaldo JSON es la <b>única</b> forma de mover los avistamientos a otro dispositivo o de recuperarlos si el navegador se limpia. Al importar, los registros se <b>fusionan</b> con los que ya hay: no se borra nada.</p>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <button class="btn small" id="btn-exportar-json">⬇ Exportar respaldo (JSON)</button>
         <label class="btn ghost small" style="cursor:pointer;">
@@ -280,36 +334,363 @@
 
 </main>
 
+<div id="toast" class="oculto"></div>
+
 <footer>
-  App demo local — no conectada a Supabase ni a internet. Los datos viven en este navegador. · Amazonía Emprende
+  App demo local — sin conexión a Supabase. Cada avistamiento se guarda solo en este dispositivo. · Amazonía Emprende
 </footer>
 
 <script>
 const ESPECIES = [{"comun":"Agachadiza de Wilson","cientifico":"Gallinago delicata"},{"comun":"Agachadiza Paraguaya","cientifico":"Gallinago paraguaiae"},{"comun":"Águila Blanquinegra","cientifico":"Spizaetus melanoleucus"},{"comun":"Águila Galana","cientifico":"Spizaetus ornatus"},{"comun":"Águila Negra","cientifico":"Spizaetus tyrannus"},{"comun":"Águila Pescadora","cientifico":"Pandion haliaetus"},{"comun":"Águila Poma","cientifico":"Spizaetus isidori"},{"comun":"Águila Solitaria","cientifico":"Buteogallus solitarius"},{"comun":"Alcaraván Venezolano","cientifico":"Hesperoburhinus bistriatus"},{"comun":"Amazilia Andina","cientifico":"Uranomitra franciae"},{"comun":"Amazilia Colimorada","cientifico":"Saucerottia viridigaster"},{"comun":"Amazilia Gorjirroja","cientifico":"Hylocharis sapphirina"},{"comun":"Amazilia Listada","cientifico":"Chionomesa fimbriata"},{"comun":"Amazilia Versicolor","cientifico":"Chrysuronia versicolor"},{"comun":"Amazona Alinaranja","cientifico":"Amazona amazonica"},{"comun":"Amazona Festiva","cientifico":"Amazona festiva"},{"comun":"Amazona Harinosa","cientifico":"Amazona farinosa"},{"comun":"Amazona Mercenaria","cientifico":"Amazona mercenarius"},{"comun":"Amazona Real","cientifico":"Amazona ochrocephala"},{"comun":"Ánade Azulón","cientifico":"Anas platyrhynchos"},{"comun":"Anambé Aliblanco","cientifico":"Pachyramphus polychopterus"},{"comun":"Anambé Barrado","cientifico":"Pachyramphus versicolor"},{"comun":"Anambé Blanquinegro","cientifico":"Pachyramphus albogriseus"},{"comun":"Anambé Canelo","cientifico":"Pachyramphus cinnamomeus"},{"comun":"Anambé Capirotado","cientifico":"Pachyramphus marginatus"},{"comun":"Anambé Castaño","cientifico":"Pachyramphus castaneus"},{"comun":"Anambé Cinéreo","cientifico":"Pachyramphus rufus"},{"comun":"Anambé Gorjirrosa","cientifico":"Pachyramphus minor"},{"comun":"Añapero Blanco","cientifico":"Chordeiles rupestris"},{"comun":"Añapero Colibandeado","cientifico":"Nyctiprogne leucopyga"},{"comun":"Añapero Colicorto","cientifico":"Lurocalis semitorquatus"},{"comun":"Añapero Menudo","cientifico":"Chordeiles pusillus"},{"comun":"Añapero Ñacundá","cientifico":"Chordeiles nacunda"},{"comun":"Añapero Ventrirrufo","cientifico":"Lurocalis rufiventris"},{"comun":"Añapero Yanqui","cientifico":"Chordeiles minor"},{"comun":"Andarríos Maculado","cientifico":"Actitis macularius"},{"comun":"Andarríos Solitario","cientifico":"Tringa solitaria"},{"comun":"Angú","cientifico":"Donacobius atricapilla"},{"comun":"Anhinga Americana","cientifico":"Anhinga anhinga"},{"comun":"Ánsar Común","cientifico":"Anser anser"},{"comun":"Arasarí Caripardo","cientifico":"Pteroglossus castanotis"},{"comun":"Arasarí de Azara","cientifico":"Pteroglossus azara"},{"comun":"Arasarí Fajado","cientifico":"Pteroglossus pluricinctus"},{"comun":"Arasarí Marcado","cientifico":"Pteroglossus inscriptus"},{"comun":"Aratinga Cabecifusca","cientifico":"Aratinga weddellii"},{"comun":"Aratinga de Wagler","cientifico":"Psittacara wagleri"},{"comun":"Aratinga Ojiblanca","cientifico":"Psittacara leucophthalmus"},{"comun":"Aratinga Orejigualda","cientifico":"Ognorhynchus icterotis"},{"comun":"Aratinga Pertinaz","cientifico":"Eupsittula pertinax"},{"comun":"Archibebe Patigualdo Chico","cientifico":"Tringa flavipes"},{"comun":"Archibebe Patigualdo Grande","cientifico":"Tringa melanoleuca"},{"comun":"Arpía Mayor","cientifico":"Harpia harpyja"},{"comun":"Atila Canelo","cientifico":"Attila cinnamomeus"},{"comun":"Atila Citrino","cientifico":"Attila citriniventris"},{"comun":"Atila Polimorfo","cientifico":"Attila spadiceus"},{"comun":"Atlapetes Bigotudo","cientifico":"Atlapetes albofrenatus"},{"comun":"Atlapetes Nuquiblanco","cientifico":"Atlapetes albinucha"},{"comun":"Atlapetes Pizarroso","cientifico":"Atlapetes schistaceus"},{"comun":"Atlapetes Sombrío","cientifico":"Atlapetes fuscoolivaceus"},{"comun":"Aura Gallipavo","cientifico":"Cathartes aura"},{"comun":"Aura Sabanera","cientifico":"Cathartes burrovianus"},{"comun":"Aura Selvática","cientifico":"Cathartes melambrotus"},{"comun":"Autillo Chóliba","cientifico":"Megascops choliba"},{"comun":"Autillo de Piedemonte","cientifico":"Megascops roraimae"},{"comun":"Autillo del Amazonas","cientifico":"Megascops watsonii"},{"comun":"Autillo Gorjiblanco","cientifico":"Megascops albogularis"},{"comun":"Avefría de Cayena","cientifico":"Hoploxypterus cayanus"},{"comun":"Avefría Tero","cientifico":"Vanellus chilensis"},{"comun":"Avesol Americano","cientifico":"Heliornis fulica"},{"comun":"Avetigre Colorada","cientifico":"Tigrisoma lineatum"},{"comun":"Avetigre Oscura","cientifico":"Tigrisoma fasciatum"},{"comun":"Avetorillo Americano","cientifico":"Botaurus exilis"},{"comun":"Avión Zapador","cientifico":"Riparia riparia"},{"comun":"Azor Zancón","cientifico":"Geranospiza caerulescens"},{"comun":"Bandurria Común","cientifico":"Theristicus caudatus"},{"comun":"Batará Alillano","cientifico":"Thamnophilus schistaceus"},{"comun":"Batará Amazónico","cientifico":"Thamnophilus amazonicus"},{"comun":"Batará Barrado","cientifico":"Thamnophilus doliatus"},{"comun":"Batará Café","cientifico":"Thamnistes anabatinus"},{"comun":"Batará Cinéreo","cientifico":"Thamnomanes caesius"},{"comun":"Batará Crestibarrado","cientifico":"Thamnophilus multistriatus"},{"comun":"Batará Crestinegro","cientifico":"Sakesphorus canadensis"},{"comun":"Batará de Cocha","cientifico":"Thamnophilus praecox"},{"comun":"Batará Estrellado","cientifico":"Pygiptila stellaris"},{"comun":"Batará Gorjioscuro","cientifico":"Thamnomanes ardesiacus"},{"comun":"Batará Hombroblanco","cientifico":"Thamnophilus aethiops"},{"comun":"Batará Leonado","cientifico":"Frederickena fulva"},{"comun":"Batará Lineado","cientifico":"Cymbilaimus lineatus"},{"comun":"Batará Mayor","cientifico":"Taraba major"},{"comun":"Batará Murino","cientifico":"Thamnophilus murinus"},{"comun":"Batará Perlado","cientifico":"Megastictus margaritatus"},{"comun":"Batará Pizarroso Punteado","cientifico":"Thamnophilus punctatus"},{"comun":"Batará Unicolor","cientifico":"Thamnophilus unicolor"},{"comun":"Batará Vermiculado","cientifico":"Thamnophilus tenuepunctatus"},{"comun":"Batarito Albilistado","cientifico":"Dysithamnus leucostictus"},{"comun":"Batarito Cabecigrís","cientifico":"Dysithamnus mentalis"},{"comun":"Bienteveo Alicastaño","cientifico":"Myiozetetes cayanensis"},{"comun":"Bienteveo Cabecigrís","cientifico":"Myiozetetes granadensis"},{"comun":"Bienteveo Cejiamarillo","cientifico":"Conopias cinchoneti"},{"comun":"Bienteveo Chico","cientifico":"Philohydor lictor"},{"comun":"Bienteveo Común","cientifico":"Pitangus sulphuratus"},{"comun":"Bienteveo Guayanés","cientifico":"Conopias parvus"},{"comun":"Bienteveo Pechioscuro","cientifico":"Myiozetetes luteiventris"},{"comun":"Bienteveo Pitanguá","cientifico":"Megarynchus pitangua"},{"comun":"Bienteveo Rayado","cientifico":"Myiodynastes maculatus"},{"comun":"Bienteveo Sociable","cientifico":"Myiozetetes similis"},{"comun":"Bienteveo Ventriazufrado","cientifico":"Myiodynastes luteiventris"},{"comun":"Bienteveo Ventridorado","cientifico":"Myiodynastes hemichrysus"},{"comun":"Birro Ahumado","cientifico":"Myiotheretes fumigatus"},{"comun":"Birro Chico","cientifico":"Pyrrhomyias cinnamomeus"},{"comun":"Birro Roquero","cientifico":"Hirundinea ferruginea"},{"comun":"Brillante Coroniverde","cientifico":"Heliodoxa jacula"},{"comun":"Brillante Frentivioleta","cientifico":"Heliodoxa leadbeateri"},{"comun":"Brillante Gorjirrosado","cientifico":"Heliodoxa gularis"},{"comun":"Brillante Pechicastaño","cientifico":"Heliodoxa aurescens"},{"comun":"Brillante Pechigamuza","cientifico":"Heliodoxa rubinoides"},{"comun":"Brillante Ventrinegro","cientifico":"Heliodoxa schreibersii"},{"comun":"Buco Cabecirrojo","cientifico":"Bucco macrodactylus"},{"comun":"Buco Estriado Occidental","cientifico":"Nystalus obamai"},{"comun":"Buco Golondrina","cientifico":"Chelidoptera tenebrosa"},{"comun":"Buco Listado","cientifico":"Malacoptila fulvogularis"},{"comun":"Buco Moteado","cientifico":"Bucco tamatia"},{"comun":"Buco Musiú","cientifico":"Bucco capensis"},{"comun":"Buco Pechiblanco","cientifico":"Malacoptila fusca"},{"comun":"Buco Pechipardo","cientifico":"Notharchus ordii"},{"comun":"Buco Picogordo Occidental","cientifico":"Notharchus hyperrhynchus"},{"comun":"Buco Pío","cientifico":"Notharchus tectus"},{"comun":"Búho Corniblanco","cientifico":"Lophostrix cristata"},{"comun":"Búho Gritón","cientifico":"Asio clamator"},{"comun":"Búho Negruzco","cientifico":"Asio stygius"},{"comun":"Busardo Aliancho","cientifico":"Buteo platypterus"},{"comun":"Busardo Aura","cientifico":"Buteo albonotatus"},{"comun":"Busardo Azoreño","cientifico":"Morphnarchus princeps"},{"comun":"Busardo Blanco","cientifico":"Pseudastur albicollis"},{"comun":"Busardo Caminero","cientifico":"Rupornis magnirostris"},{"comun":"Busardo Carinegro","cientifico":"Leucopternis melanops"},{"comun":"Busardo Chapulinero","cientifico":"Buteo swainsoni"},{"comun":"Busardo Coliblanco","cientifico":"Geranoaetus albicaudatus"},{"comun":"Busardo Colicorto","cientifico":"Buteo brachyurus"},{"comun":"Busardo Colorado","cientifico":"Busarellus nigricollis"},{"comun":"Busardo Culiblanco","cientifico":"Parabuteo leucorrhous"},{"comun":"Busardo Gorjiblanco","cientifico":"Buteo albigula"},{"comun":"Busardo Gris Meridional","cientifico":"Buteo nitidus"},{"comun":"Busardo Pizarroso","cientifico":"Buteogallus schistaceus"},{"comun":"Busardo Sabanero","cientifico":"Buteogallus meridionalis"},{"comun":"Busardo Urubitinga","cientifico":"Buteogallus urubitinga"},{"comun":"Cabezón Cabecirrojo","cientifico":"Eubucco bourcierii"},{"comun":"Cabezón Dorado","cientifico":"Capito auratus"},{"comun":"Cabezón Oliva","cientifico":"Capito aurovirens"},{"comun":"Cabezón Pechiamarillo","cientifico":"Eubucco richardsoni"},{"comun":"Cachudito Ágil","cientifico":"Uromyias agilis"},{"comun":"Cacique Crestado","cientifico":"Psarocolius decumanus"},{"comun":"Cacique de Pará","cientifico":"Psarocolius bifasciatus"},{"comun":"Cacique Dorsirrufo","cientifico":"Psarocolius angustifrons"},{"comun":"Cacique Ecuatoriano","cientifico":"Cacicus sclateri"},{"comun":"Cacique Lomiamarillo","cientifico":"Cacicus cela"},{"comun":"Cacique Lomiescarlata","cientifico":"Cacicus uropygialis"},{"comun":"Cacique Lomirrojo","cientifico":"Cacicus haemorrhous"},{"comun":"Cacique Montano","cientifico":"Cacicus chrysonotus"},{"comun":"Cacique Piquiclaro","cientifico":"Amblycercus holosericeus"},{"comun":"Cacique Solitario","cientifico":"Cacicus solitarius"},{"comun":"Cacique Verde","cientifico":"Psarocolius viridis"},{"comun":"Calamoncillo Americano","cientifico":"Porphyrio martinica"},{"comun":"Calamoncillo Celeste","cientifico":"Porphyrio flavirostris"},{"comun":"Calzadito Pechiblanco","cientifico":"Eriocnemis aline"},{"comun":"Calzadito Reluciente","cientifico":"Eriocnemis vestita"},{"comun":"Calzadito Verdoso Norteño","cientifico":"Haplophaedia aureliae"},{"comun":"Candelita Adornada","cientifico":"Myioborus ornatus"},{"comun":"Candelita Norteña","cientifico":"Setophaga ruticilla"},{"comun":"Candelita Plomiza","cientifico":"Myioborus miniatus"},{"comun":"Capuchino Castaño","cientifico":"Lonchura atricapilla"},{"comun":"Capuchino Tricolor","cientifico":"Lonchura malacca"},{"comun":"Cárabo Café","cientifico":"Strix virgata"},{"comun":"Cárabo Negro","cientifico":"Strix huhula"},{"comun":"Cárabo Patiblanco","cientifico":"Strix albitarsis"},{"comun":"Caracara Carancho","cientifico":"Caracara plancus"},{"comun":"Caracara Chimachima","cientifico":"Daptrius chimachima"},{"comun":"Caracara Gorjirrojo","cientifico":"Ibycter americanus"},{"comun":"Caracara Negro","cientifico":"Daptrius ater"},{"comun":"Caracolero Común","cientifico":"Rostrhamus sociabilis"},{"comun":"Caracolero Plomizo","cientifico":"Helicolestes hamatus"},{"comun":"Cardenilla Capirroja","cientifico":"Paroaria gularis"},{"comun":"Carpinterito de Lafresnaye","cientifico":"Picumnus lafresnayi"},{"comun":"Carpinterito Escamoso","cientifico":"Picumnus squamulatus"},{"comun":"Carpintero Ahumado","cientifico":"Leuconotopicus fumigatus"},{"comun":"Carpintero Amarillo","cientifico":"Celeus flavus"},{"comun":"Carpintero Azulado","cientifico":"Melanerpes cruentatus"},{"comun":"Carpintero Bellotero","cientifico":"Melanerpes formicivorus"},{"comun":"Carpintero Cabecirrufo","cientifico":"Celeus spectabilis"},{"comun":"Carpintero Candela","cientifico":"Colaptes rivolii"},{"comun":"Carpintero Chico","cientifico":"Veniliornis passerinus"},{"comun":"Carpintero Coronirrojo","cientifico":"Melanerpes rubricapillus"},{"comun":"Carpintero Elegante","cientifico":"Celeus elegans"},{"comun":"Carpintero Gorjiblanco","cientifico":"Piculus leucolaemus"},{"comun":"Carpintero Gorjigualdo","cientifico":"Piculus flavigula"},{"comun":"Carpintero Moteado","cientifico":"Colaptes punctigula"},{"comun":"Carpintero Oliváceo","cientifico":"Colaptes rubiginosus"},{"comun":"Carpintero Ondulado","cientifico":"Celeus undatus"},{"comun":"Carpintero Pechinegro","cientifico":"Celeus torquatus"},{"comun":"Carpintero Teñido","cientifico":"Veniliornis affinis"},{"comun":"Carpintero Ventriamarillo","cientifico":"Veniliornis dignus"},{"comun":"Carpintero Verdiamarillo","cientifico":"Piculus chrysochloros"},{"comun":"Carrao","cientifico":"Aramus guarauna"},{"comun":"Catita Aliazul","cientifico":"Brotogeris cyanoptera"},{"comun":"Catita Barrada","cientifico":"Bolborhynchus lineola"},{"comun":"Catita Churica","cientifico":"Brotogeris jugularis"},{"comun":"Catita Frentigualda","cientifico":"Brotogeris sanctithomae"},{"comun":"Catita Versicolor","cientifico":"Brotogeris versicolurus"},{"comun":"Cerceta Aliazul","cientifico":"Spatula discors"},{"comun":"Cernícalo Americano","cientifico":"Falco sparverius"},{"comun":"Cerquero Capirrufo","cientifico":"Arremon castaneiceps"},{"comun":"Cerquero Coronicastaño","cientifico":"Arremon brunneinucha"},{"comun":"Cerquero Negrilistado","cientifico":"Arremonops conirostris"},{"comun":"Cerquero Pectoral Sureño","cientifico":"Arremon taciturnus"},{"comun":"Cerquero Picofino","cientifico":"Arremon assimilis"},{"comun":"Chachalaca Colombiana","cientifico":"Ortalis columbiana"},{"comun":"Chachalaca Moteada","cientifico":"Ortalis guttata"},{"comun":"Chajá Añuma","cientifico":"Anhima cornuta"},{"comun":"Chango Oriolino","cientifico":"Gymnomystax mexicanus"},{"comun":"Chango Terciopelo","cientifico":"Lampropsar tanagrinus"},{"comun":"Chango Ventrirrojo","cientifico":"Hypopyrrhus pyrohypogaster"},{"comun":"Chara Collareja","cientifico":"Cyanolyca armillata"},{"comun":"Chara Verde","cientifico":"Cyanocorax yncas"},{"comun":"Chara Violácea","cientifico":"Cyanocorax violaceus"},{"comun":"Charrán Picudo","cientifico":"Phaetusa simplex"},{"comun":"Charrancito Amazónico","cientifico":"Sternula superciliaris"},{"comun":"Chingolo Cejigualdo","cientifico":"Ammodramus aurifrons"},{"comun":"Chingolo Común","cientifico":"Zonotrichia capensis"},{"comun":"Chingolo Pajonalero","cientifico":"Ammodramus humeralis"},{"comun":"Chirigüe Azafranado","cientifico":"Sicalis flaveola"},{"comun":"Chirigüe Sabanero","cientifico":"Sicalis luteola"},{"comun":"Chochín Criollo Sureño","cientifico":"Troglodytes musculus"},{"comun":"Chochín Montañés","cientifico":"Troglodytes solstitialis"},{"comun":"Chorlitejo de Azara","cientifico":"Anarhynchus collaris"},{"comun":"Chotacabras Colipinto","cientifico":"Antiurus maculicaudus"},{"comun":"Chotacabras Colorado","cientifico":"Antrostomus rufus"},{"comun":"Chotacabras de Escalera","cientifico":"Hydropsalis climacocerca"},{"comun":"Chotacabras Golondrina","cientifico":"Uropsalis segmentata"},{"comun":"Chotacabras Lira","cientifico":"Uropsalis lyra"},{"comun":"Chotacabras Ñañarca Grande","cientifico":"Systellura longirostris"},{"comun":"Chotacabras Negruzco","cientifico":"Nyctipolus nigrescens"},{"comun":"Chotacabras Ocelado","cientifico":"Nyctiphrynus ocellatus"},{"comun":"Chotacabras Pauraque","cientifico":"Nyctidromus albicollis"},{"comun":"Churrín Colilargo","cientifico":"Scytalopus micropterus"},{"comun":"Churrín Coroniblanco","cientifico":"Scytalopus atratus"},{"comun":"Churrín de Spillmann","cientifico":"Scytalopus spillmanni"},{"comun":"Churrín del Alto Magdalena","cientifico":"Scytalopus rodriguezi"},{"comun":"Churrín Negruzco","cientifico":"Scytalopus latrans"},{"comun":"Cigüeñuela Cuellinegra","cientifico":"Himantopus mexicanus"},{"comun":"Cimerillo Andino","cientifico":"Lophotriccus pileatus"},{"comun":"Cimerillo Bilistado","cientifico":"Lophotriccus vitiosus"},{"comun":"Cimerillo de Casquete","cientifico":"Lophotriccus galeatus"},{"comun":"Clorofonia Nuquiazul","cientifico":"Chlorophonia cyanea"},{"comun":"Clorofonia Pechicastaña","cientifico":"Chlorophonia pyrrhophrys"},{"comun":"Clorospingo Bigotudo","cientifico":"Chlorospingus parvirostris"},{"comun":"Clorospingo Común","cientifico":"Chlorospingus flavopectus"},{"comun":"Clorospingo Gorjiamarillo","cientifico":"Chlorospingus flavigularis"},{"comun":"Clorospingo Gorjigrís","cientifico":"Chlorospingus canigularis"},{"comun":"Colibrí Aliazul","cientifico":"Pterophanes cyanopterus"},{"comun":"Colibrí Amatista","cientifico":"Calliphlox amethystina"},{"comun":"Colibrí Aterciopelado","cientifico":"Lafresnaya lafresnayi"},{"comun":"Colibrí Blanquioliva","cientifico":"Talaphorus chlorocercus"},{"comun":"Colibrí Cabeciazul","cientifico":"Klais guimeti"},{"comun":"Colibrí Colihabano","cientifico":"Boissonneaua flavescens"},{"comun":"Colibrí Colilargo Menor","cientifico":"Lesbia nuna"},{"comun":"Colibrí Colipinto Ecuatoriano","cientifico":"Phlogophilus hemileucurus"},{"comun":"Colibrí de Bouguer Oriental","cientifico":"Urochroa leucura"},{"comun":"Colibrí de Buffon","cientifico":"Chalybura buffonii"},{"comun":"Colibrí de Clarissa","cientifico":"Heliangelus clarisse"},{"comun":"Colibrí de Heliodoro","cientifico":"Chaetocercus heliodor"},{"comun":"Colibrí de Mulsant","cientifico":"Chaetocercus mulsant"},{"comun":"Colibrí de Raquetas Faldiblanco","cientifico":"Ocreatus underwoodii"},{"comun":"Colibrí de Teresa","cientifico":"Polytmus theresiae"},{"comun":"Colibrí del Napo","cientifico":"Campylopterus villaviscensio"},{"comun":"Colibrí Florido de Tolima","cientifico":"Anthocephala berlepschi"},{"comun":"Colibrí Guainumbí","cientifico":"Polytmus guainumbi"},{"comun":"Colibrí Hada Oriental","cientifico":"Heliothryx auritus"},{"comun":"Colibrí Ígneo","cientifico":"Topaza pyra"},{"comun":"Colibrí Jaspeado","cientifico":"Adelomyia melanogenys"},{"comun":"Colibrí Lazulita","cientifico":"Campylopterus falcatus"},{"comun":"Colibrí Moteado","cientifico":"Taphrospilus hypostictus"},{"comun":"Colibrí Nuquiblanco","cientifico":"Florisuga mellivora"},{"comun":"Colibrí Pardo","cientifico":"Colibri delphinae"},{"comun":"Colibrí Pechigrís","cientifico":"Campylopterus largipennis"},{"comun":"Colibrí Picocuña Oriental","cientifico":"Schistes geoffroyi"},{"comun":"Colibrí Picoespada","cientifico":"Ensifera ensifera"},{"comun":"Colibrí Picolanza Mayor","cientifico":"Doryfera ludovicae"},{"comun":"Colibrí Picolanza Menor","cientifico":"Doryfera johannae"},{"comun":"Colibrí Piquilargo","cientifico":"Heliomaster longirostris"},{"comun":"Colibrí Puntiblanco Oriental","cientifico":"Urosticte ruficrissa"},{"comun":"Colibrí Rubí","cientifico":"Chrysolampis mosquitus"},{"comun":"Colibrí Rutilante","cientifico":"Colibri coruscans"},{"comun":"Colibrí Turmalina","cientifico":"Heliangelus exortis"},{"comun":"Colibrí Verdemar Menor","cientifico":"Colibri cyanotus"},{"comun":"Colín Crestudo","cientifico":"Colinus cristatus"},{"comun":"Coludo Colicuña","cientifico":"Emberizoides herbicola"},{"comun":"Columbina Colorada","cientifico":"Columbina talpacoti"},{"comun":"Columbina Común","cientifico":"Columbina passerina"},{"comun":"Columbina Menuda","cientifico":"Columbina minuta"},{"comun":"Conirrostro Coronado","cientifico":"Conirostrum albifrons"},{"comun":"Conirrostro Culirrufo","cientifico":"Conirostrum speciosum"},{"comun":"Copetón Capirotado","cientifico":"Myiarchus tuberculifer"},{"comun":"Copetón de Swainson","cientifico":"Myiarchus swainsoni"},{"comun":"Copetón Feroz","cientifico":"Myiarchus ferox"},{"comun":"Copetón Montañero","cientifico":"Myiarchus cephalotes"},{"comun":"Copetón Tiranillo","cientifico":"Myiarchus tyrannulus"},{"comun":"Copetón Viajero","cientifico":"Myiarchus crinitus"},{"comun":"Coqueta Coronada","cientifico":"Lophornis stictolophus"},{"comun":"Coqueta Verde Norteña","cientifico":"Lophornis verreauxii"},{"comun":"Corcovado Castaño","cientifico":"Odontophorus hyperythrus"},{"comun":"Corcovado Común","cientifico":"Odontophorus gujanensis"},{"comun":"Cormorán Biguá","cientifico":"Nannopterum brasilianum"},{"comun":"Corocoro Blanco","cientifico":"Eudocimus albus"},{"comun":"Corocoro Rojo","cientifico":"Eudocimus ruber"},{"comun":"Coronafelpa","cientifico":"Metopothrix aurantiaca"},{"comun":"Correlimos Batitú","cientifico":"Bartramia longicauda"},{"comun":"Correlimos de Baird","cientifico":"Calidris bairdii"},{"comun":"Correlimos Menudillo","cientifico":"Calidris minutilla"},{"comun":"Correlimos Pectoral","cientifico":"Calidris melanotos"},{"comun":"Cotara Café","cientifico":"Amaurolimnas concolor"},{"comun":"Cotara Chiricote","cientifico":"Aramides cajaneus"},{"comun":"Cotinga Celeste","cientifico":"Cotinga cayana"},{"comun":"Cotinga Crestirrojo","cientifico":"Ampelion rubrocristatus"},{"comun":"Cotinga Mayna","cientifico":"Cotinga maynana"},{"comun":"Cotinga Pompadour","cientifico":"Xipholena punicea"},{"comun":"Cotinga Quérula","cientifico":"Querula purpurata"},{"comun":"Cotinga Rojo Cuellinegro","cientifico":"Phoenicircus nigricollis"},{"comun":"Cotinguita Cejiblanco","cientifico":"Iodopleura isabellae"},{"comun":"Cotorra Colinegra","cientifico":"Pyrrhura melanura"},{"comun":"Cotorrita Alipinta","cientifico":"Touit stictopterus"},{"comun":"Cotorrita Alirroja","cientifico":"Touit huetii"},{"comun":"Cotorrita Azuleja","cientifico":"Forpus crassirostris"},{"comun":"Cotorrita de Anteojos","cientifico":"Forpus conspicillatus"},{"comun":"Cotorrita de Sclater","cientifico":"Forpus modestus"},{"comun":"Cotorrita Purpurada","cientifico":"Touit purpuratus"},{"comun":"Cucarachero Bigotudo Montano","cientifico":"Pheugopedius mystacalis"},{"comun":"Cucarachero Coraya","cientifico":"Pheugopedius coraya"},{"comun":"Cucarachero Currucuchú","cientifico":"Campylorhynchus griseus"},{"comun":"Cucarachero Dorsigrís","cientifico":"Odontorchilus branickii"},{"comun":"Cucarachero Musical","cientifico":"Cyphorhinus arada"},{"comun":"Cucarachero Pechiblanco","cientifico":"Henicorhina leucosticta"},{"comun":"Cucarachero Pechigrís","cientifico":"Henicorhina leucophrys"},{"comun":"Cucarachero Pechihabano","cientifico":"Cantorchilus leucotis"},{"comun":"Cucarachero Pechirrufo","cientifico":"Pheugopedius rutilus"},{"comun":"Cucarachero Rufo","cientifico":"Cinnycerthia unirufa"},{"comun":"Cucarachero Ruiseñor Sureño","cientifico":"Microcerculus marginatus"},{"comun":"Cucarachero Sepia","cientifico":"Cinnycerthia olivascens"},{"comun":"Cucarachero Turdino","cientifico":"Campylorhynchus turdinus"},{"comun":"Cuclillo Canela","cientifico":"Coccyzus melacoryphus"},{"comun":"Cuclillo Crespín","cientifico":"Tapera naevia"},{"comun":"Cuclillo Faisán","cientifico":"Dromococcyx phasianellus"},{"comun":"Cuclillo Pavonino","cientifico":"Dromococcyx pavoninus"},{"comun":"Cuclillo Piquigualdo","cientifico":"Coccyzus americanus"},{"comun":"Cuclillo Ventriblanco","cientifico":"Coccyzus euleri"},{"comun":"Cuco Ardilla Común","cientifico":"Piaya cayana"},{"comun":"Cuco Ardilla Menor","cientifico":"Coccycua minuta"},{"comun":"Cuco Ardilla Ventrinegro","cientifico":"Piaya melanogaster"},{"comun":"Cuellopelado","cientifico":"Gymnoderus foetidus"},{"comun":"Curutié Cejigrís","cientifico":"Cranioleuca curtata"},{"comun":"Curutié Frontino","cientifico":"Siptornis striaticollis"},{"comun":"Curutié Jaspeado","cientifico":"Thripophaga gutturata"},{"comun":"Dacnis Azul","cientifico":"Dacnis cayana"},{"comun":"Dacnis Carinegro","cientifico":"Dacnis lineata"},{"comun":"Dacnis Ventriamarillo","cientifico":"Dacnis flaviventer"},{"comun":"Dacnis Ventriblanco","cientifico":"Dacnis albiventris"},{"comun":"Elanio del Misisipi","cientifico":"Ictinia mississippiensis"},{"comun":"Elanio Enano","cientifico":"Gampsonyx swainsonii"},{"comun":"Elanio Maromero","cientifico":"Elanus leucurus"},{"comun":"Elanio Plomizo","cientifico":"Ictinia plumbea"},{"comun":"Elanio Tijereta","cientifico":"Elanoides forficatus"},{"comun":"Ermitaño Barbiblanco","cientifico":"Phaethornis hispidus"},{"comun":"Ermitaño Barbigrís","cientifico":"Phaethornis griseogularis"},{"comun":"Ermitaño Barbinegro","cientifico":"Phaethornis atrimentalis"},{"comun":"Ermitaño Barbudo Coliblanco","cientifico":"Threnetes leucurus"},{"comun":"Ermitaño Hirsuto","cientifico":"Glaucis hirsutus"},{"comun":"Ermitaño Picogrande","cientifico":"Phaethornis malaris"},{"comun":"Ermitaño Piquirrecto","cientifico":"Phaethornis bourcieri"},{"comun":"Ermitaño Rojizo","cientifico":"Phaethornis ruber"},{"comun":"Ermitaño Ventrihabano","cientifico":"Phaethornis syrmatophorus"},{"comun":"Ermitaño Ventripálido","cientifico":"Phaethornis anthophilus"},{"comun":"Ermitaño Verde","cientifico":"Phaethornis guy"},{"comun":"Esmeralda Coliazul","cientifico":"Chlorostilbon mellisugus"},{"comun":"Esmeralda Colicorta","cientifico":"Chlorostilbon poortmani"},{"comun":"Esmeralda del Chiribiquete","cientifico":"Chlorostilbon olivaresi"},{"comun":"Esmeralda Gorjiazul","cientifico":"Chlorestes notata"},{"comun":"Esmerejón","cientifico":"Falco columbarius"},{"comun":"Espátula Rosada","cientifico":"Platalea ajaja"},{"comun":"Eufonia Culiblanca","cientifico":"Euphonia minuta"},{"comun":"Eufonia Culidorada","cientifico":"Chlorophonia cyanocephala"},{"comun":"Eufonia Golipúrpura","cientifico":"Euphonia chlorotica"},{"comun":"Eufonia Maquillada","cientifico":"Euphonia chrysopasta"},{"comun":"Eufonia Piquigruesa","cientifico":"Euphonia laniirostris"},{"comun":"Eufonia Plúmbea","cientifico":"Euphonia plumbea"},{"comun":"Eufonia Ventrinaranja","cientifico":"Euphonia xanthogaster"},{"comun":"Eufonia Ventrirrufa","cientifico":"Euphonia rufiventris"},{"comun":"Eufonia Verdosa","cientifico":"Euphonia mesochrysa"},{"comun":"Fiofío Belicoso","cientifico":"Elaenia chiriquensis"},{"comun":"Fiofío Crestiblanco","cientifico":"Elaenia albiceps"},{"comun":"Fiofío Crestirrufo","cientifico":"Elaenia ruficeps"},{"comun":"Fiofío de Pallatanga","cientifico":"Elaenia pallatangae"},{"comun":"Fiofío Gigante","cientifico":"Elaenia gigas"},{"comun":"Fiofío Gris Amazónico","cientifico":"Myiopagis cinerea"},{"comun":"Fiofío Montano","cientifico":"Elaenia frantzii"},{"comun":"Fiofío Piquicorto","cientifico":"Elaenia parvirostris"},{"comun":"Fiofío Plomizo","cientifico":"Elaenia strepera"},{"comun":"Fiofío Selvático","cientifico":"Myiopagis gaimardii"},{"comun":"Fiofío Ventriamarillo","cientifico":"Elaenia flavogaster"},{"comun":"Formicario Capirrojo","cientifico":"Formicarius colma"},{"comun":"Formicario Enmascarado","cientifico":"Formicarius analis"},{"comun":"Frutero Barrado","cientifico":"Pipreola arcuata"},{"comun":"Frutero Gorjirrojo","cientifico":"Pipreola chlorolepidota"},{"comun":"Frutero Verdinegro","cientifico":"Pipreola riefferii"},{"comun":"Gallineta Americana","cientifico":"Gallinula galeata"},{"comun":"Gallito de las Rocas Guayanés","cientifico":"Rupicola rupicola"},{"comun":"Gallito de las Rocas Peruano","cientifico":"Rupicola peruvianus"},{"comun":"Gallo Bankiva","cientifico":"Gallus gallus"},{"comun":"Garceta Azul","cientifico":"Egretta caerulea"},{"comun":"Garceta Grande","cientifico":"Ardea alba"},{"comun":"Garceta Nívea","cientifico":"Egretta thula"},{"comun":"Garcilla Azulada","cientifico":"Butorides striata"},{"comun":"Garcilla Bueyera Occidental","cientifico":"Ardea ibis"},{"comun":"Garrapatero Aní","cientifico":"Crotophaga ani"},{"comun":"Garrapatero Mayor","cientifico":"Crotophaga major"},{"comun":"Garza Agamí","cientifico":"Agamia agami"},{"comun":"Garza Capirotada","cientifico":"Pilherodius pileatus"},{"comun":"Garza Chiflona","cientifico":"Syrigma sibilatrix"},{"comun":"Garza Cuca","cientifico":"Ardea cocoi"},{"comun":"Gavilán Americano","cientifico":"Accipiter striatus"},{"comun":"Gavilán Bicolor","cientifico":"Astur bicolor"},{"comun":"Gavilancito Americano","cientifico":"Microspizias superciliosus"},{"comun":"Gavilancito Torcaz","cientifico":"Microspizias collaris"},{"comun":"Golondrina Acollarada","cientifico":"Pygochelidon melanoleuca"},{"comun":"Golondrina Aliblanca","cientifico":"Tachycineta albiventer"},{"comun":"Golondrina Barranquera","cientifico":"Pygochelidon cyanoleuca"},{"comun":"Golondrina Común","cientifico":"Hirundo rustica"},{"comun":"Golondrina Fajiblanca","cientifico":"Atticora fasciata"},{"comun":"Golondrina Gorjirrufa","cientifico":"Stelgidopteryx ruficollis"},{"comun":"Golondrina Parda","cientifico":"Progne tapera"},{"comun":"Golondrina Patiblanca","cientifico":"Atticora tibialis"},{"comun":"Golondrina Pechigrís","cientifico":"Progne chalybea"},{"comun":"Golondrina Purpúrea","cientifico":"Progne subis"},{"comun":"Golondrina Risquera","cientifico":"Petrochelidon pyrrhonota"},{"comun":"Golondrina Ventriparda","cientifico":"Orochelidon murina"},{"comun":"Guacamayo Aliverde","cientifico":"Ara chloropterus"},{"comun":"Guacamayo Azuliamarillo","cientifico":"Ara ararauna"},{"comun":"Guacamayo Macao","cientifico":"Ara macao"},{"comun":"Guacamayo Militar","cientifico":"Ara militaris"},{"comun":"Guacamayo Severo","cientifico":"Ara severus"},{"comun":"Guacamayo Ventrirrojo","cientifico":"Orthopsittaca manilatus"},{"comun":"Guácharo","cientifico":"Steatornis caripensis"},{"comun":"Guajolote Gallipavo","cientifico":"Meleagris gallopavo"},{"comun":"Guardabosques Coligrís","cientifico":"Snowornis subalaris"},{"comun":"Guardabosques Gritón","cientifico":"Lipaugus vociferans"},{"comun":"Guardabosques Oliváceo","cientifico":"Snowornis cryptolophus"},{"comun":"Guardabosques Oscuro","cientifico":"Lipaugus fuscocinereus"},{"comun":"Habia Coronirroja","cientifico":"Habia rubica"},{"comun":"Halcón Aleto","cientifico":"Falco femoralis"},{"comun":"Halcón Montés Agavilanado","cientifico":"Micrastur ruficollis"},{"comun":"Halcón Montés Cabecigrís","cientifico":"Micrastur gilvicollis"},{"comun":"Halcón Montés Collarejo","cientifico":"Micrastur semitorquatus"},{"comun":"Halcón Murcielaguero","cientifico":"Falco rufigularis"},{"comun":"Halcón Pechirrojo","cientifico":"Falco deiroleucus"},{"comun":"Halcón Peregrino","cientifico":"Falco peregrinus"},{"comun":"Halcón Reidor","cientifico":"Herpetotheres cachinnans"},{"comun":"Hemispingo Capirotado","cientifico":"Kleinothraupis atropileus"},{"comun":"Hemispingo Cejudo","cientifico":"Thlypopsis superciliaris"},{"comun":"Hemispingo Oleaginoso","cientifico":"Sphenopsis frontalis"},{"comun":"Hoazín","cientifico":"Opisthocomus hoazin"},{"comun":"Hormiguerito Adornado","cientifico":"Epinecrophylla ornata"},{"comun":"Hormiguerito Alilargo","cientifico":"Myrmotherula longipennis"},{"comun":"Hormiguerito Amazónico","cientifico":"Myrmotherula multostriata"},{"comun":"Hormiguerito Coicorita Sureño","cientifico":"Formicivora grisea"},{"comun":"Hormiguerito Colirrufo","cientifico":"Epinecrophylla erythrura"},{"comun":"Hormiguerito de Cherrie","cientifico":"Myrmotherula cherriei"},{"comun":"Hormiguerito de Griscom","cientifico":"Myrmotherula ignota"},{"comun":"Hormiguerito de Hauxwell","cientifico":"Isleria hauxwelli"},{"comun":"Hormiguerito del Quijos","cientifico":"Microrhopias quixensis"},{"comun":"Hormiguerito Dorsirrojo","cientifico":"Epinecrophylla haematonota"},{"comun":"Hormiguerito Flanquialbo","cientifico":"Myrmotherula axillaris"},{"comun":"Hormiguerito Gorjiamarillo","cientifico":"Myrmotherula ambigua"},{"comun":"Hormiguerito Gris","cientifico":"Myrmotherula menetriesii"},{"comun":"Hormiguerito Pigmeo","cientifico":"Myrmotherula brachyura"},{"comun":"Hormiguerito Pizarroso","cientifico":"Myrmotherula schisticolor"},{"comun":"Hormiguerito Plomizo","cientifico":"Myrmotherula assimilis"},{"comun":"Hormiguerito Submontano","cientifico":"Epinecrophylla spodionota"},{"comun":"Hormiguero Alimoteado","cientifico":"Myrmelastes leucostigma"},{"comun":"Hormiguero Alirrojo","cientifico":"Phlegopsis erythroptera"},{"comun":"Hormiguero Amarillento","cientifico":"Hypocnemis flavescens"},{"comun":"Hormiguero Bandeado","cientifico":"Dichrozona cincta"},{"comun":"Hormiguero Barbinegro","cientifico":"Hypocnemoides melanopogon"},{"comun":"Hormiguero Cabecinegro","cientifico":"Percnostola rufifrons"},{"comun":"Hormiguero Canoso","cientifico":"Rhegmatorhina melanosticta"},{"comun":"Hormiguero Cariblanco","cientifico":"Gymnopithys leucaspis"},{"comun":"Hormiguero Carinegro","cientifico":"Myrmoborus myotherinus"},{"comun":"Hormiguero Cejiamarillo","cientifico":"Hypocnemis hypoxantha"},{"comun":"Hormiguero Cejiblanco","cientifico":"Myrmoborus leucophrys"},{"comun":"Hormiguero Cresticastaño","cientifico":"Rhegmatorhina cristata"},{"comun":"Hormiguero Cuerniblanco","cientifico":"Pithys albifrons"},{"comun":"Hormiguero Dorsiescamado Común","cientifico":"Willisornis poecilinotus"},{"comun":"Hormiguero Dorsipunteado","cientifico":"Hylophylax naevius"},{"comun":"Hormiguero Gorjinegro","cientifico":"Myrmophylax atrothorax"},{"comun":"Hormiguero Gris","cientifico":"Cercomacra cinerascens"},{"comun":"Hormiguero Hombroblanco","cientifico":"Akletos melanoceps"},{"comun":"Hormiguero Lomipunteado","cientifico":"Hylophylax punctulatus"},{"comun":"Hormiguero Maculado","cientifico":"Phlegopsis nigromaculata"},{"comun":"Hormiguero Negro","cientifico":"Cercomacroides serva"},{"comun":"Hormiguero Peruano","cientifico":"Hypocnemis peruviana"},{"comun":"Hormiguero Pizarroso","cientifico":"Myrmelastes schistaceus"},{"comun":"Hormiguero Plateado","cientifico":"Sclateria naevia"},{"comun":"Hormiguero Plomizo","cientifico":"Myrmelastes hyperythrus"},{"comun":"Hormiguero Ribereño","cientifico":"Cercomacroides fuscicauda"},{"comun":"Hormiguero Tirano","cientifico":"Cercomacroides tyrannina"},{"comun":"Hormiguero Tiznado","cientifico":"Hafferia fortis"},{"comun":"Ibis Afeitado","cientifico":"Phimosus infuscatus"},{"comun":"Ibis Verde","cientifico":"Mesembrinibis cayennensis"},{"comun":"Inca Acollarado","cientifico":"Coeligena torquata"},{"comun":"Inca Bronceado","cientifico":"Coeligena coeligena"},{"comun":"Jabirú Americano","cientifico":"Jabiru mycteria"},{"comun":"Jacamará Barbiblanco","cientifico":"Galbula tombacea"},{"comun":"Jacamará Bronceado","cientifico":"Galbula leucogastra"},{"comun":"Jacamará Cobrizo","cientifico":"Galbula pastazae"},{"comun":"Jacamará Colilargo","cientifico":"Galbula dea"},{"comun":"Jacamará Grande","cientifico":"Jacamerops aureus"},{"comun":"Jacamará Orejiblanco","cientifico":"Galbalcyrhynchus leucotis"},{"comun":"Jacamará Pardo","cientifico":"Brachygalba lugubris"},{"comun":"Jacamará Piquigualdo","cientifico":"Galbula albirostris"},{"comun":"Jacamará Violáceo","cientifico":"Galbula chalcothorax"},{"comun":"Jacana Sudamericana","cientifico":"Jacana jacana"},{"comun":"Jejenero Coronicastaño","cientifico":"Conopophaga castaneiceps"},{"comun":"Jejenero Orejudo","cientifico":"Conopophaga aurita"},{"comun":"Jilguero Menor","cientifico":"Spinus psaltria"},{"comun":"Jilguero Ventriamarillo","cientifico":"Spinus xanthogastrus"},{"comun":"Lechuza Común Americana","cientifico":"Tyto furcata"},{"comun":"Lechuzón Acollarado Grande","cientifico":"Pulsatrix melanota"},{"comun":"Lechuzón de Anteojos","cientifico":"Pulsatrix perspicillata"},{"comun":"Llorón de Várzea","cientifico":"Schiffornis major"},{"comun":"Llorón Turdino","cientifico":"Schiffornis turdina"},{"comun":"Loica Pechirroja","cientifico":"Leistes militaris"},{"comun":"Lorito Carinaranja","cientifico":"Pyrilia barrabandi"},{"comun":"Lorito Chirlecrés","cientifico":"Pionites melanocephalus"},{"comun":"Lorito Colicorto","cientifico":"Graydidascalus brachyurus"},{"comun":"Loro Alibronceado","cientifico":"Pionus chalcopterus"},{"comun":"Loro Cabeciazul","cientifico":"Pionus menstruus"},{"comun":"Loro Piquirrojo","cientifico":"Pionus sordidus"},{"comun":"Loro Tumultuoso","cientifico":"Pionus tumultuosus"},{"comun":"Malvasía Enmascarada","cientifico":"Nomonyx dominicus"},{"comun":"Mango Gorjinegro","cientifico":"Anthracothorax nigricollis"},{"comun":"Martín Gigante Neotropical","cientifico":"Megaceryle torquata"},{"comun":"Martín Pescador Amazónico","cientifico":"Chloroceryle amazona"},{"comun":"Martín Pescador Enano","cientifico":"Chloroceryle aenea"},{"comun":"Martín Pescador Verde","cientifico":"Chloroceryle americana"},{"comun":"Martín Pescador Verdirrufo","cientifico":"Chloroceryle inda"},{"comun":"Martinete Común","cientifico":"Nycticorax nycticorax"},{"comun":"Martinete Cucharón","cientifico":"Cochlearius cochlearius"},{"comun":"Mascarita Equinoccial","cientifico":"Geothlypis aequinoctialis"},{"comun":"Metalura Tiria","cientifico":"Metallura tyrianthina"},{"comun":"Mielerito Cerúleo","cientifico":"Cyanerpes caeruleus"},{"comun":"Mielerito Collarejo","cientifico":"Iridophanes pulcherrimus"},{"comun":"Mielerito Patirrojo","cientifico":"Cyanerpes cyaneus"},{"comun":"Mielerito Piquicorto","cientifico":"Cyanerpes nitidus"},{"comun":"Mielerito Verde","cientifico":"Chlorophanes spiza"},{"comun":"Milano Bidentado","cientifico":"Harpagus bidentatus"},{"comun":"Milano Cabecigrís","cientifico":"Leptodon cayanensis"},{"comun":"Milano Picogarfio","cientifico":"Chondrohierax uncinatus"},{"comun":"Mirlo Acuático Coroniblanco","cientifico":"Cinclus leucocephalus"},{"comun":"Mirlo Grande","cientifico":"Turdus fuscater"},{"comun":"Mirlo Ojiblanco","cientifico":"Turdus leucops"},{"comun":"Mirlo Serrano","cientifico":"Turdus serranus"},{"comun":"Mochuelo Andino","cientifico":"Glaucidium jardinii"},{"comun":"Mochuelo de Madriguera","cientifico":"Athene cunicularia"},{"comun":"Momoto Amazónico","cientifico":"Momotus momota"},{"comun":"Momoto Picoancho","cientifico":"Electron platyrhynchum"},{"comun":"Momoto Serrano","cientifico":"Momotus aequatorialis"},{"comun":"Momoto Yeruvá Occidental","cientifico":"Baryphthengus martii"},{"comun":"Monja Frentiblanca","cientifico":"Monasa morphoeus"},{"comun":"Monja Piquigualda","cientifico":"Monasa flavirostris"},{"comun":"Monja Unicolor","cientifico":"Monasa nigrifrons"},{"comun":"Monjilla Lanceolada","cientifico":"Micromonacha lanceolata"},{"comun":"Monjilla Macurú","cientifico":"Nonnula rubecula"},{"comun":"Morito Común","cientifico":"Plegadis falcinellus"},{"comun":"Moscareta Barbada","cientifico":"Myiobius barbatus"},{"comun":"Moscareta Vellosa","cientifico":"Myiobius villosus"},{"comun":"Mosquerito Adornado","cientifico":"Myiotriccus ornatus"},{"comun":"Mosquerito Amarillo","cientifico":"Capsiempis flaveola"},{"comun":"Mosquerito Cabecigrís","cientifico":"Phyllomyias griseiceps"},{"comun":"Mosquerito Canelo","cientifico":"Neopipo cinnamomea"},{"comun":"Mosquerito Capirotado","cientifico":"Tyranniscus nigrocapillus"},{"comun":"Mosquerito Caridorado","cientifico":"Zimmerius chrysops"},{"comun":"Mosquerito Cenizo","cientifico":"Tyranniscus cinereiceps"},{"comun":"Mosquerito Colirrojo","cientifico":"Terenotriccus erythrurus"},{"comun":"Mosquerito Coronado","cientifico":"Tyrannulus elatus"},{"comun":"Mosquerito Culirrufo","cientifico":"Tyranniscus uropygialis"},{"comun":"Mosquerito de Zeledón","cientifico":"Acrochordopus zeledoni"},{"comun":"Mosquerito Guardarríos","cientifico":"Ochthornis littoralis"},{"comun":"Mosquerito Moteado","cientifico":"Ornithion inerme"},{"comun":"Mosquerito Patifino","cientifico":"Zimmerius gracilipes"},{"comun":"Mosquerito Silbón","cientifico":"Camptostoma obsoletum"},{"comun":"Mosquero Aceitunado","cientifico":"Mionectes oleagineus"},{"comun":"Mosquero Alisero","cientifico":"Empidonax alnorum"},{"comun":"Mosquero Amarillo","cientifico":"Myiophobus flavicans"},{"comun":"Mosquero Cardenal","cientifico":"Pyrocephalus rubinus"},{"comun":"Mosquero Colilargo","cientifico":"Colonia colonus"},{"comun":"Mosquero Culiblanco","cientifico":"Sirystes albocinereus"},{"comun":"Mosquero de Euler","cientifico":"Lathrotriccus euleri"},{"comun":"Mosquero Gorjiestriado","cientifico":"Mionectes striaticollis"},{"comun":"Mosquero Hermoso","cientifico":"Nephelomyias pulcher"},{"comun":"Mosquero Matorralero Amazónico","cientifico":"Sublegatus obscurior"},{"comun":"Mosquero Negro","cientifico":"Sayornis nigricans"},{"comun":"Mosquero Pardo","cientifico":"Cnipodectes subbrunneus"},{"comun":"Mosquero Parduzco","cientifico":"Cnemotriccus fuscatus"},{"comun":"Mosquero Pirata","cientifico":"Legatus leucophaius"},{"comun":"Mosquero Rayadito","cientifico":"Mionectes galbinus"},{"comun":"Mosquero Real Amazónico","cientifico":"Onychorhynchus coronatus"},{"comun":"Mosquero Saucero","cientifico":"Empidonax traillii"},{"comun":"Mosquero Terrestre Norteño","cientifico":"Corythopis torquatus"},{"comun":"Mosquero Verdoso","cientifico":"Empidonax virescens"},{"comun":"Mosqueta Colicorta","cientifico":"Myiornis ecaudatus"},{"comun":"Nictibio Aliblanco","cientifico":"Nyctibius leucopterus"},{"comun":"Nictibio Colilargo","cientifico":"Nyctibius aethereus"},{"comun":"Nictibio Grande","cientifico":"Nyctibius grandis"},{"comun":"Nictibio Rufo","cientifico":"Phyllaemulor bracteatus"},{"comun":"Nictibio Urutaú","cientifico":"Nyctibius griseus"},{"comun":"Ojodefuego Occidental","cientifico":"Pyriglena maura"},{"comun":"Orejerito Ecuatoriano","cientifico":"Phylloscartes gualaquizae"},{"comun":"Orejerito Variegado","cientifico":"Pogonotriccus poecilotis"},{"comun":"Orejero Coronigrís","cientifico":"Leptopogon superciliaris"},{"comun":"Orejero Coronipardo","cientifico":"Leptopogon amaurocephalus"},{"comun":"Orejero Pechirrufo","cientifico":"Leptopogon rufipectus"},{"comun":"Palmero","cientifico":"Berlepschia rikeri"},{"comun":"Paloma Bravía","cientifico":"Columba livia"},{"comun":"Paloma Colorada","cientifico":"Patagioenas cayennensis"},{"comun":"Paloma Escamosa","cientifico":"Patagioenas speciosa"},{"comun":"Paloma Montaraz Común","cientifico":"Leptotila verreauxi"},{"comun":"Paloma Montaraz Frentiblanca","cientifico":"Leptotila rufaxilla"},{"comun":"Paloma Perdiz Común","cientifico":"Geotrygon montana"},{"comun":"Paloma Perdiz Embridada","cientifico":"Zentrygon linearis"},{"comun":"Paloma Perdiz Gorjiblanca","cientifico":"Zentrygon frenata"},{"comun":"Paloma Perdiz Zafiro","cientifico":"Geotrygon saphirina"},{"comun":"Paloma Plomiza","cientifico":"Patagioenas plumbea"},{"comun":"Paloma Torcaza","cientifico":"Patagioenas fasciata"},{"comun":"Paloma Vinosa","cientifico":"Patagioenas subvinacea"},{"comun":"Paragüero Ornado","cientifico":"Cephalopterus ornatus"},{"comun":"Parula Pitiayumí","cientifico":"Setophaga pitiayumi"},{"comun":"Pato Criollo","cientifico":"Cairina moschata"},{"comun":"Pato Torrentero","cientifico":"Merganetta armata"},{"comun":"Paují Culiblanco","cientifico":"Mitu salvini"},{"comun":"Paují Culicastaño","cientifico":"Mitu tomentosum"},{"comun":"Paují Nocturno","cientifico":"Nothocrax urumutum"},{"comun":"Pava Aburria","cientifico":"Aburria aburri"},{"comun":"Pava Amazónica","cientifico":"Penelope jacquacu"},{"comun":"Pava Andina","cientifico":"Penelope montagnii"},{"comun":"Pava Falcialar","cientifico":"Chamaepetes goudotii"},{"comun":"Pava Goliazul","cientifico":"Pipile cumanensis"},{"comun":"Pavón Carunculado","cientifico":"Crax globulosa"},{"comun":"Pavón Guayanés","cientifico":"Crax alector"},{"comun":"Pepitero Gorjicanelo","cientifico":"Saltator maximus"},{"comun":"Pepitero Grisáceo del Amazonas","cientifico":"Saltator coerulescens"},{"comun":"Pepitero Listado","cientifico":"Saltator striatipectus"},{"comun":"Pepitero Pizarroso","cientifico":"Saltator grossus"},{"comun":"Periquito Común","cientifico":"Melopsittacus undulatus"},{"comun":"Perlita del Río Negro","cientifico":"Polioptila facilis"},{"comun":"Perlita Tropical","cientifico":"Polioptila plumbea"},{"comun":"Pibí Ahumado","cientifico":"Contopus fumigatus"},{"comun":"Pibí Boreal","cientifico":"Contopus cooperi"},{"comun":"Pibí Occidental","cientifico":"Contopus sordidulus"},{"comun":"Pibí Oriental","cientifico":"Contopus virens"},{"comun":"Pibí Tropical Norteño","cientifico":"Contopus bogotensis"},{"comun":"Picabuey","cientifico":"Machetornis rixosa"},{"comun":"Picamaderos Barbinegro","cientifico":"Campephilus melanoleucos"},{"comun":"Picamaderos Cuellirrojo","cientifico":"Campephilus rubricollis"},{"comun":"Picamaderos Listado","cientifico":"Dryocopus lineatus"},{"comun":"Picamaderos Poderoso","cientifico":"Campephilus pollens"},{"comun":"Picamaderos Ventrirrojo","cientifico":"Campephilus haematogaster"},{"comun":"Picogrueso Amazónico","cientifico":"Cyanoloxia rothschildii"},{"comun":"Picogrueso Humeral","cientifico":"Parkerthraustes humeralis"},{"comun":"Picogrueso Pechirrosado","cientifico":"Pheucticus ludovicianus"},{"comun":"Picogrueso Verdiamarillo","cientifico":"Caryothraustes canadensis"},{"comun":"Picoguadaña Andino","cientifico":"Campylorhamphus pusillus"},{"comun":"Picoguadaña Piquirrojo","cientifico":"Campylorhamphus trochilirostris"},{"comun":"Picohoz Colicanela","cientifico":"Eutoxeres condamini"},{"comun":"Picohoz Coliverde","cientifico":"Eutoxeres aquila"},{"comun":"Picolezna Colirrufo","cientifico":"Microxenops milleri"},{"comun":"Picolezna Liso Brasileño","cientifico":"Xenops genibarbis"},{"comun":"Picolezna Picofino","cientifico":"Xenops tenuirostris"},{"comun":"Picolezna Rojizo","cientifico":"Xenops rutilans"},{"comun":"Picoplano Aliamarillo Común","cientifico":"Tolmomyias assimilis"},{"comun":"Picoplano Bigotudo","cientifico":"Platyrinchus mystaceus"},{"comun":"Picoplano Cabecigrís","cientifico":"Tolmomyias poliocephalus"},{"comun":"Picoplano Cabeciverde","cientifico":"Tolmomyias viridiceps"},{"comun":"Picoplano Cabezón","cientifico":"Ramphotrigon megacephalum"},{"comun":"Picoplano Colirrufo","cientifico":"Ramphotrigon ruficauda"},{"comun":"Picoplano Coronado","cientifico":"Platyrinchus coronatus"},{"comun":"Picoplano Crestiblanco","cientifico":"Platyrinchus platyrhynchos"},{"comun":"Picoplano Equinoccial","cientifico":"Rhynchocyclus aequinoctialis"},{"comun":"Picoplano Ojinaranja","cientifico":"Tolmomyias traylori"},{"comun":"Picoplano Pechirrufo","cientifico":"Rhynchocyclus fulvipectus"},{"comun":"Picoplano Sulfuroso","cientifico":"Tolmomyias sulphurescens"},{"comun":"Pijuí Coronipardo","cientifico":"Synallaxis gujanensis"},{"comun":"Pijuí de Azara","cientifico":"Synallaxis azarae"},{"comun":"Pijuí Oscuro","cientifico":"Synallaxis moesta"},{"comun":"Pijuí Paramero","cientifico":"Hellmayrea gularis"},{"comun":"Pijuí Pechiblanco","cientifico":"Synallaxis albescens"},{"comun":"Pijuí Pechioscuro","cientifico":"Synallaxis albigularis"},{"comun":"Pijuí Pizarroso","cientifico":"Synallaxis brachyura"},{"comun":"Pijuí Rojizo","cientifico":"Synallaxis rutilans"},{"comun":"Pijuí Rufo","cientifico":"Synallaxis unirufa"},{"comun":"Pinchaflor Azulado","cientifico":"Diglossa caerulescens"},{"comun":"Pinchaflor Enmascarado","cientifico":"Diglossa cyanea"},{"comun":"Pinchaflor Ferrugíneo","cientifico":"Diglossa sittoides"},{"comun":"Pinchaflor Flanquiblanco","cientifico":"Diglossa albilatera"},{"comun":"Pinchaflor Glauco","cientifico":"Diglossa glauca"},{"comun":"Pinchaflor Negro","cientifico":"Diglossa humeralis"},{"comun":"Pinchaflor Satinado","cientifico":"Diglossa lafresnayii"},{"comun":"Piojito Azufre","cientifico":"Mecocerculus minor"},{"comun":"Piojito Coliblanco","cientifico":"Mecocerculus poecilocercus"},{"comun":"Piojito Gargantilla","cientifico":"Mecocerculus leucophrys"},{"comun":"Piojito Guardarríos","cientifico":"Serpophaga cinerea"},{"comun":"Piojito Pardo","cientifico":"Nesotriccus murinus"},{"comun":"Piprites Verde","cientifico":"Piprites chloris"},{"comun":"Piranga Aliblanca","cientifico":"Piranga leucoptera"},{"comun":"Piranga Bermeja","cientifico":"Piranga flava"},{"comun":"Piranga Escarlata","cientifico":"Piranga olivacea"},{"comun":"Piranga Roja","cientifico":"Piranga rubra"},{"comun":"Pitajo Diademado","cientifico":"Silvicultrix diadema"},{"comun":"Pitajo Dorsipardo","cientifico":"Ochthoeca fumicolor"},{"comun":"Pitajo Ventricastaño","cientifico":"Ochthoeca cinnamomeiventris"},{"comun":"Plañidera Cenicienta","cientifico":"Laniocera hypopyrra"},{"comun":"Plañidera Gris","cientifico":"Rhytipterna simplex"},{"comun":"Plañidera Pálida","cientifico":"Rhytipterna immunda"},{"comun":"Platanero","cientifico":"Coereba flaveola"},{"comun":"Polluela Barreada","cientifico":"Rufirallus fasciatus"},{"comun":"Polluela Burrito","cientifico":"Laterallus melanophaius"},{"comun":"Polluela Coronirrufa","cientifico":"Rufirallus viridis"},{"comun":"Polluela Pechigrís","cientifico":"Laterallus exilis"},{"comun":"Polluela Pituro","cientifico":"Anurolimnas castaneiceps"},{"comun":"Polluela Turura","cientifico":"Mustelirallus albicollis"},{"comun":"Ponchito Enano","cientifico":"Grallaricula nana"},{"comun":"Ponchito Ocráceo","cientifico":"Grallaricula flavirostris"},{"comun":"Pradero Oriental","cientifico":"Sturnella magna"},{"comun":"Quetzal Cabecidorado","cientifico":"Pharomachrus auriceps"},{"comun":"Quetzal Crestado","cientifico":"Pharomachrus antisianus"},{"comun":"Quetzal Pavonino","cientifico":"Pharomachrus pavoninus"},{"comun":"Rabudito Crestado","cientifico":"Discosura popelairii"},{"comun":"Rabudito Ventrinegro","cientifico":"Discosura langsdorffi"},{"comun":"Rayador Americano","cientifico":"Rynchops niger"},{"comun":"Reinita Amarilla","cientifico":"Setophaga aestiva"},{"comun":"Reinita Cabecilistada","cientifico":"Basileuterus tristriatus"},{"comun":"Reinita Canadiense","cientifico":"Cardellina canadensis"},{"comun":"Reinita Castaña","cientifico":"Setophaga castanea"},{"comun":"Reinita Cerúlea","cientifico":"Setophaga cerulea"},{"comun":"Reinita Charquera Norteña","cientifico":"Parkesia noveboracensis"},{"comun":"Reinita Citrina","cientifico":"Myiothlypis luteoviridis"},{"comun":"Reinita Coroniestriada","cientifico":"Basileuterus culicivorus"},{"comun":"Reinita Coronirroja","cientifico":"Myiothlypis coronata"},{"comun":"Reinita Culiparda","cientifico":"Myiothlypis fulvicauda"},{"comun":"Reinita de Connecticut","cientifico":"Oporornis agilis"},{"comun":"Reinita de Tennessee","cientifico":"Leiothlypis peregrina"},{"comun":"Reinita Estriada","cientifico":"Setophaga striata"},{"comun":"Reinita Gorjinaranja","cientifico":"Setophaga fusca"},{"comun":"Reinita Plañidera","cientifico":"Geothlypis philadelphia"},{"comun":"Reinita Trepadora","cientifico":"Mniotilta varia"},{"comun":"Saltarín Alidorado","cientifico":"Masius chrysopterus"},{"comun":"Saltarín Barbiblanco","cientifico":"Manacus manacus"},{"comun":"Saltarín Cabecidorado","cientifico":"Ceratopipra erythrocephala"},{"comun":"Saltarín Coroniazul","cientifico":"Lepidothrix coronata"},{"comun":"Saltarín Coroniblanco","cientifico":"Pseudopipra pipra"},{"comun":"Saltarín Coronigualdo","cientifico":"Neopelma chrysocephalum"},{"comun":"Saltarín Crestiamarillo","cientifico":"Heterocercus flavivertex"},{"comun":"Saltarín Dorsiazul","cientifico":"Chiroxiphia pareola"},{"comun":"Saltarín Enano","cientifico":"Tyranneutes stolzmanni"},{"comun":"Saltarín Lomiazul","cientifico":"Lepidothrix isidorei"},{"comun":"Saltarín Negro","cientifico":"Xenopipo atronitens"},{"comun":"Saltarín Rayado Occidental","cientifico":"Machaeropterus striolatus"},{"comun":"Saltarín Uirapuru","cientifico":"Pipra filicauda"},{"comun":"Saltarín Verde","cientifico":"Cryptopipo holochlora"},{"comun":"Semillero Aliblanco","cientifico":"Sporophila americana"},{"comun":"Semillero Bicolor","cientifico":"Melanospiza bicolor"},{"comun":"Semillero Curió","cientifico":"Sporophila angolensis"},{"comun":"Semillero de Lesson","cientifico":"Sporophila bouvronides"},{"comun":"Semillero Intermedio","cientifico":"Sporophila intermedia"},{"comun":"Semillero Negriblanco","cientifico":"Sporophila luctuosa"},{"comun":"Semillero Nuquiblanco","cientifico":"Sporophila fringilloides"},{"comun":"Semillero Oscuro","cientifico":"Asemospiza obscura"},{"comun":"Semillero Overo","cientifico":"Sporophila lineola"},{"comun":"Semillero Pechirrufo","cientifico":"Sporophila minuta"},{"comun":"Semillero Piquigrande","cientifico":"Sporophila crassirostris"},{"comun":"Semillero Plomizo","cientifico":"Sporophila plumbea"},{"comun":"Semillero Tomeguín","cientifico":"Tiaris olivaceus"},{"comun":"Semillero Ventriamarillo","cientifico":"Sporophila nigricollis"},{"comun":"Semillero Ventricastaño","cientifico":"Sporophila castaneiventris"},{"comun":"Semillero Volatinero","cientifico":"Volatinia jacarina"},{"comun":"Silfo de King","cientifico":"Aglaiocercus kingii"},{"comun":"Sinsonte Tropical","cientifico":"Mimus gilvus"},{"comun":"Solitario Andino","cientifico":"Myadestes ralloides"},{"comun":"Soterillo Acollarado","cientifico":"Microbates collaris"},{"comun":"Soterillo Picudo","cientifico":"Ramphocaenus melanurus"},{"comun":"Subepalo Alirrojizo","cientifico":"Premnornis guttuliger"},{"comun":"Subepalo Moteado","cientifico":"Premnoplex brunnescens"},{"comun":"Subepalo Perlado","cientifico":"Margarornis squamiger"},{"comun":"Suirirí Cariblanco","cientifico":"Dendrocygna viduata"},{"comun":"Suirirí Piquirrojo","cientifico":"Dendrocygna autumnalis"},{"comun":"Tangara Aliazul","cientifico":"Anisognathus somptuosus"},{"comun":"Tangara Azuleja","cientifico":"Thraupis episcopus"},{"comun":"Tangara Azulinegra","cientifico":"Tangara vassorii"},{"comun":"Tangara Bermellón","cientifico":"Calochaetes coccineus"},{"comun":"Tangara Cabeciazul","cientifico":"Stilpnia cyanicollis"},{"comun":"Tangara Cabecibaya","cientifico":"Tangara gyrola"},{"comun":"Tangara Cabecigrís","cientifico":"Eucometis penicillata"},{"comun":"Tangara Carafuego","cientifico":"Tangara parzudakii"},{"comun":"Tangara Carinegra","cientifico":"Schistochlamys melanopis"},{"comun":"Tangara Cejiazul","cientifico":"Tangara cyanotis"},{"comun":"Tangara Coroniazul","cientifico":"Sporathraupis cyanocephala"},{"comun":"Tangara Coroniblanca","cientifico":"Sericossypha albocristata"},{"comun":"Tangara Coronidorada","cientifico":"Iridosornis rufivertex"},{"comun":"Tangara Coronigualda","cientifico":"Tangara xanthocephala"},{"comun":"Tangara Coroninegra","cientifico":"Stilpnia heinei"},{"comun":"Tangara Crestifuego","cientifico":"Loriotus cristatus"},{"comun":"Tangara Crestifulva","cientifico":"Tachyphonus surinamus"},{"comun":"Tangara Crestirrufa","cientifico":"Creurgops verticalis"},{"comun":"Tangara de Antifaz","cientifico":"Pipraeidea melanonota"},{"comun":"Tangara de Galones","cientifico":"Tachyphonus phoenicius"},{"comun":"Tangara de Lentejuelas","cientifico":"Tangara nigroviridis"},{"comun":"Tangara de Schrank","cientifico":"Tangara schrankii"},{"comun":"Tangara del Paraíso","cientifico":"Tangara chilensis"},{"comun":"Tangara Dorada","cientifico":"Tangara arthus"},{"comun":"Tangara Dorsirroja","cientifico":"Ramphocelus dimidiatus"},{"comun":"Tangara Embridada","cientifico":"Chlorothraupis frenata"},{"comun":"Tangara Enmascarada","cientifico":"Ramphocelus nigrogularis"},{"comun":"Tangara Fulva","cientifico":"Lanio fulvus"},{"comun":"Tangara Golondrina","cientifico":"Tersina viridis"},{"comun":"Tangara Gorjigualda","cientifico":"Hemithraupis flavicollis"},{"comun":"Tangara Isabel","cientifico":"Stilpnia cayana"},{"comun":"Tangara Lacrimosa","cientifico":"Anisognathus lacrymosus"},{"comun":"Tangara Lorito","cientifico":"Chlorornis riefferii"},{"comun":"Tangara Luctuosa","cientifico":"Loriotus luctuosus"},{"comun":"Tangara Matorralera","cientifico":"Stilpnia vitriolina"},{"comun":"Tangara Montana","cientifico":"Buthraupis montana"},{"comun":"Tangara Negra","cientifico":"Tachyphonus rufus"},{"comun":"Tangara Nuquirrufa","cientifico":"Chalcothraupis ruficervix"},{"comun":"Tangara Opalina","cientifico":"Tangara callophrys"},{"comun":"Tangara Orejidorada","cientifico":"Tangara chrysotis"},{"comun":"Tangara Orejinaranja","cientifico":"Chlorochrysa calliparaea"},{"comun":"Tangara Palmera","cientifico":"Thraupis palmarum"},{"comun":"Tangara Pechifulva Norteña","cientifico":"Dubusia taeniata"},{"comun":"Tangara Pechinegra","cientifico":"Stilpnia nigrocincta"},{"comun":"Tangara Peluda","cientifico":"Catamblyrhynchus diadema"},{"comun":"Tangara Picoplata","cientifico":"Ramphocelus carbo"},{"comun":"Tangara Pintoja","cientifico":"Ixothraupis guttata"},{"comun":"Tangara Piquirrubia","cientifico":"Cnemoscopus rubrirostris"},{"comun":"Tangara Puntosa","cientifico":"Ixothraupis punctata"},{"comun":"Tangara Turquesa","cientifico":"Tangara mexicana"},{"comun":"Tangara Urraca","cientifico":"Cissopis leverianus"},{"comun":"Tangara Velia","cientifico":"Tangara velia"},{"comun":"Tangara Ventriamarilla","cientifico":"Ixothraupis xanthogastra"},{"comun":"Tangara Verdinegra","cientifico":"Tangara labradorides"},{"comun":"Tántalo Americano","cientifico":"Mycteria americana"},{"comun":"Tapaculo Amazónico","cientifico":"Liosceles thoracicus"},{"comun":"Tapaculo Ocelado","cientifico":"Acropternis orthonyx"},{"comun":"Ticotico Alicastaño","cientifico":"Dendroma erythroptera"},{"comun":"Ticotico Castaño","cientifico":"Clibanornis rubiginosus"},{"comun":"Ticotico Colirrufo","cientifico":"Anabacerthia ruficaudata"},{"comun":"Ticotico Coronicastaño","cientifico":"Automolus rufipileatus"},{"comun":"Ticotico Gorjiclaro Oriental","cientifico":"Automolus ochrolaemus"},{"comun":"Ticotico Listado Amazónico","cientifico":"Automolus subulatus"},{"comun":"Ticotico Lomicanelo","cientifico":"Philydor pyrrhodes"},{"comun":"Ticotico Lomirrufo","cientifico":"Neophilydor erythrocercum"},{"comun":"Ticotico Montano","cientifico":"Anabacerthia striaticollis"},{"comun":"Ticotico Oliváceo","cientifico":"Automolus infuscatus"},{"comun":"Ticotico Picogancho","cientifico":"Ancistrops strigilatus"},{"comun":"Ticotico Rayado","cientifico":"Syndactyla subalaris"},{"comun":"Tigana","cientifico":"Eurypyga helias"},{"comun":"Tijereta Sabanera","cientifico":"Tyrannus savana"},{"comun":"Tiluchí Alirrufo Norteño","cientifico":"Herpsilochmus frater"},{"comun":"Tiluchí de Dugand","cientifico":"Herpsilochmus dugandi"},{"comun":"Tiluchí de Santander","cientifico":"Drymophila caudata"},{"comun":"Tiluchí Dorsimanchado","cientifico":"Herpsilochmus dorsimaculatus"},{"comun":"Tiluchí Lomirrufo","cientifico":"Euchrepomis callinota"},{"comun":"Tiluchí Pechiamarillo","cientifico":"Herpsilochmus axillaris"},{"comun":"Tiluchí Piojito","cientifico":"Euchrepomis spodioptila"},{"comun":"Tinamú Abigarrado","cientifico":"Crypturellus variegatus"},{"comun":"Tinamú Cabecirrojo","cientifico":"Nothocercus julius"},{"comun":"Tinamú Chico","cientifico":"Crypturellus soui"},{"comun":"Tinamú Herrumbroso","cientifico":"Crypturellus brevirostris"},{"comun":"Tinamú Moteado","cientifico":"Tinamus guttatus"},{"comun":"Tinamú Negro","cientifico":"Tinamus osgoodi"},{"comun":"Tinamú Oliváceo","cientifico":"Tinamus major"},{"comun":"Tinamú Ondeado","cientifico":"Crypturellus undulatus"},{"comun":"Tinamú Patigrís","cientifico":"Crypturellus duidae"},{"comun":"Tinamú Serrano","cientifico":"Nothocercus bonapartei"},{"comun":"Tinamú Sombrío","cientifico":"Crypturellus cinereus"},{"comun":"Tinamú Tao","cientifico":"Tinamus tao"},{"comun":"Tirahojas Colinegro","cientifico":"Sclerurus caudacutus"},{"comun":"Tirahojas Oscuro","cientifico":"Sclerurus obscurior"},{"comun":"Tirahojas Piquicorto","cientifico":"Sclerurus rufigularis"},{"comun":"Tirano Dominicano","cientifico":"Tyrannus dominicensis"},{"comun":"Tirano Gorjiblanco","cientifico":"Tyrannus albogularis"},{"comun":"Tirano Melancólico","cientifico":"Tyrannus melancholicus"},{"comun":"Tirano Oriental","cientifico":"Tyrannus tyrannus"},{"comun":"Tirano Palmero","cientifico":"Tyrannopsis sulphurea"},{"comun":"Tiranuelo Cabecirrojo","cientifico":"Pseudotriccus ruficeps"},{"comun":"Titira Colinegro","cientifico":"Tityra cayana"},{"comun":"Titira Enmascarado","cientifico":"Tityra semifasciata"},{"comun":"Titira Piquinegro","cientifico":"Tityra inquisitor"},{"comun":"Titirijí Alidorado","cientifico":"Poecilotriccus calopterus"},{"comun":"Titirijí Capirrufo","cientifico":"Poecilotriccus ruficeps"},{"comun":"Titirijí Cejiamarillo","cientifico":"Todirostrum chrysocrotaphum"},{"comun":"Titirijí Común","cientifico":"Todirostrum cinereum"},{"comun":"Titirijí de Joao","cientifico":"Hemitriccus iohannis"},{"comun":"Titirijí Frentirrojo","cientifico":"Poecilotriccus latirostris"},{"comun":"Titirijí Gorjiestriado","cientifico":"Hemitriccus striaticollis"},{"comun":"Titirijí Gorjinegro","cientifico":"Hemitriccus granadensis"},{"comun":"Titirijí Gorjirrufo","cientifico":"Hemitriccus rufigularis"},{"comun":"Titirijí Gris","cientifico":"Poecilotriccus sylvia"},{"comun":"Titirijí Moteado","cientifico":"Todirostrum maculatum"},{"comun":"Titirijí Ojiblanco","cientifico":"Hemitriccus zosterops"},{"comun":"Titirijí Perlado","cientifico":"Hemitriccus margaritaceiventer"},{"comun":"Titirijí Pío","cientifico":"Poecilotriccus capitalis"},{"comun":"Tordo Charlatán","cientifico":"Dolichonyx oryzivorus"},{"comun":"Tordo Gigante","cientifico":"Molothrus oryzivorus"},{"comun":"Tordo Renegrido","cientifico":"Molothrus bonariensis"},{"comun":"Tororoí Bicolor","cientifico":"Grallaria rufocinerea"},{"comun":"Tororoí Campanero","cientifico":"Myrmothera campanisona"},{"comun":"Tororoí Cholino","cientifico":"Grallaria guatimalensis"},{"comun":"Tororoí Compadre","cientifico":"Grallaria ruficapilla"},{"comun":"Tororoí Moteado","cientifico":"Hylopezus macularius"},{"comun":"Tororoí Nuquicastaño","cientifico":"Grallaria nuchalis"},{"comun":"Tororoí Ondoso","cientifico":"Grallaria squamigera"},{"comun":"Tororoí Torero","cientifico":"Grallaria haplonota"},{"comun":"Tororoí Ventriblanco","cientifico":"Grallaria hypoleuca"},{"comun":"Tororoí Ventricanela Ecuatoriano","cientifico":"Myrmothera fulviventris"},{"comun":"Tórtola Turca","cientifico":"Streptopelia decaocto"},{"comun":"Tortolita Azulada","cientifico":"Claravis pretiosa"},{"comun":"Tortolita Escamosa","cientifico":"Columbina squammata"},{"comun":"Tovacá Colicorto","cientifico":"Chamaeza campanisona"},{"comun":"Tovacá Noble","cientifico":"Chamaeza nobilis"},{"comun":"Tovacá Turdino","cientifico":"Chamaeza turdina"},{"comun":"Trepamusgos Barbablanca Andino","cientifico":"Pseudocolaptes boissonneautii"},{"comun":"Trepamusgos Cabecirrayado","cientifico":"Thripadectes virgaticeps"},{"comun":"Trepamusgos Flamulado","cientifico":"Thripadectes flammulatus"},{"comun":"Trepamusgos Listado","cientifico":"Thripadectes holostictus"},{"comun":"Trepamusgos Piquinegro","cientifico":"Thripadectes melanorhynchus"},{"comun":"Trepatroncos Barbiblanco","cientifico":"Dendrocincla merula"},{"comun":"Trepatroncos Barrado Amazónico","cientifico":"Dendrocolaptes certhia"},{"comun":"Trepatroncos Cabecirrayado","cientifico":"Lepidocolaptes souleyetii"},{"comun":"Trepatroncos Colilargo Sureño","cientifico":"Deconychura pallida"},{"comun":"Trepatroncos del Duida","cientifico":"Lepidocolaptes duidae"},{"comun":"Trepatroncos Dorsioliva","cientifico":"Xiphorhynchus triangularis"},{"comun":"Trepatroncos Elegante","cientifico":"Xiphorhynchus elegans"},{"comun":"Trepatroncos Fuliginoso","cientifico":"Dendrocincla fuliginosa"},{"comun":"Trepatroncos Gorjicanelo","cientifico":"Dendrexetastes rufigula"},{"comun":"Trepatroncos Gorjipunteado","cientifico":"Certhiasomus stictolaemus"},{"comun":"Trepatroncos Loco","cientifico":"Xiphorhynchus obsoletus"},{"comun":"Trepatroncos Montano","cientifico":"Lepidocolaptes lacrymiger"},{"comun":"Trepatroncos Ocelado","cientifico":"Xiphorhynchus ocellatus"},{"comun":"Trepatroncos Oliváceo","cientifico":"Sittasomus griseicapillus"},{"comun":"Trepatroncos Pegón","cientifico":"Xiphorhynchus guttatus"},{"comun":"Trepatroncos Picocuña","cientifico":"Glyphorynchus spirurus"},{"comun":"Trepatroncos Picofuerte","cientifico":"Xiphocolaptes promeropirhynchus"},{"comun":"Trepatroncos Piquilargo","cientifico":"Nasica longirostris"},{"comun":"Trepatroncos Piquirrecto","cientifico":"Dendroplex picus"},{"comun":"Trepatroncos Tiranino","cientifico":"Dendrocincla tyrannina"},{"comun":"Trepatroncos Variable","cientifico":"Dendrocolaptes picumnus"},{"comun":"Trogón Acollarado","cientifico":"Trogon collaris"},{"comun":"Trogón Amarillo Esmeralda","cientifico":"Trogon rufus"},{"comun":"Trogón Amazónico","cientifico":"Trogon ramonianus"},{"comun":"Trogón Colinegro Común","cientifico":"Trogon melanurus"},{"comun":"Trogón Curucuí","cientifico":"Trogon curucui"},{"comun":"Trogón Dorsiverde","cientifico":"Trogon viridis"},{"comun":"Trogón Enmascarado","cientifico":"Trogon personatus"},{"comun":"Trompetero Aligrís","cientifico":"Psophia crepitans"},{"comun":"Tucán Pechiblanco","cientifico":"Ramphastos tucanus"},{"comun":"Tucán Pechigualdo","cientifico":"Ramphastos ambiguus"},{"comun":"Tucán Piquinegro","cientifico":"Andigena nigrirostris"},{"comun":"Tucán Vitelino","cientifico":"Ramphastos vitellinus"},{"comun":"Tucanete Culirrojo","cientifico":"Aulacorhynchus haematopygus"},{"comun":"Tucanete de Natterer","cientifico":"Selenidera nattereri"},{"comun":"Tucanete de Reinwardt","cientifico":"Selenidera reinwardtii"},{"comun":"Tucanete Gorjiblanco","cientifico":"Aulacorhynchus albivitta"},{"comun":"Tuquito Gris","cientifico":"Empidonomus aurantioatrocristatus"},{"comun":"Tuquito Rayado","cientifico":"Empidonomus varius"},{"comun":"Turpial Amarillo","cientifico":"Icterus nigrogularis"},{"comun":"Turpial Amazónico","cientifico":"Icterus croconotus"},{"comun":"Turpial Boyerito","cientifico":"Icterus cayanensis"},{"comun":"Turpial Dorsidorado","cientifico":"Icterus chrysater"},{"comun":"Varillero Capuchino","cientifico":"Chrysomus icterocephalus"},{"comun":"Vencejillo Tijereta","cientifico":"Tachornis squamata"},{"comun":"Vencejo Acollarado","cientifico":"Streptoprocne zonaris"},{"comun":"Vencejo Barbiblanco","cientifico":"Cypseloides cryptus"},{"comun":"Vencejo Ceniciento","cientifico":"Chaetura cinereiventris"},{"comun":"Vencejo Cuatroojos","cientifico":"Cypseloides cherriei"},{"comun":"Vencejo Cuellirrojo","cientifico":"Streptoprocne rutila"},{"comun":"Vencejo de Chapman","cientifico":"Chaetura chapmani"},{"comun":"Vencejo de Chimenea","cientifico":"Chaetura pelagica"},{"comun":"Vencejo Egregio","cientifico":"Chaetura egregia"},{"comun":"Vencejo Montañés","cientifico":"Aeronautes montivagus"},{"comun":"Vencejo Negro","cientifico":"Cypseloides niger"},{"comun":"Vencejo Rabón","cientifico":"Chaetura brachyura"},{"comun":"Vencejo Tijereta Chico","cientifico":"Panyptila cayennensis"},{"comun":"Verdillo Cabecicastaño","cientifico":"Hylophilus brunneiceps"},{"comun":"Verdillo Coronileonado","cientifico":"Tunchiornis ferrugineifrons"},{"comun":"Verdillo Nuquirrufo","cientifico":"Pachysylvia semibrunnea"},{"comun":"Verdillo Paticlaro","cientifico":"Hylophilus flavipes"},{"comun":"Verdillo Pechilimón","cientifico":"Hylophilus thoracicus"},{"comun":"Verdillo Ventriamarillo","cientifico":"Pachysylvia hypoxantha"},{"comun":"Vireo Chiví","cientifico":"Vireo chivi"},{"comun":"Vireo Coronipardo","cientifico":"Vireo leucophrys"},{"comun":"Vireo Ojirrojo","cientifico":"Vireo olivaceus"},{"comun":"Vireo Verdiamarillo","cientifico":"Vireo flavoviridis"},{"comun":"Vireón Cejirrufo","cientifico":"Cyclarhis gujanensis"},{"comun":"Vireón Coronigrís","cientifico":"Vireolanius leucotis"},{"comun":"Vireón Piquinegro","cientifico":"Cyclarhis nigrirostris"},{"comun":"Viudita Amazónica","cientifico":"Knipolegus poecilocercus"},{"comun":"Viudita Cabeciblanca","cientifico":"Arundinicola leucocephala"},{"comun":"Viudita Colirrufa","cientifico":"Knipolegus poecilurus"},{"comun":"Viudita Pía","cientifico":"Fluvicola pica"},{"comun":"Yacutoro","cientifico":"Pyroderus scutatus"},{"comun":"Yal Pizarroso","cientifico":"Haplospiza rustica"},{"comun":"Zafiro Colidorado","cientifico":"Chrysuronia oenone"},{"comun":"Zafiro Coronado","cientifico":"Thalurania colombica"},{"comun":"Zafiro Golondrina","cientifico":"Thalurania furcata"},{"comun":"Zafiro Gorjiblanco","cientifico":"Chlorestes cyanus"},{"comun":"Zampullín Macacito","cientifico":"Tachybaptus dominicus"},{"comun":"Zanate Caribeño","cientifico":"Quiscalus lugubris"},{"comun":"Zenaida Torcaza","cientifico":"Zenaida auriculata"},{"comun":"Zopilote Negro","cientifico":"Coragyps atratus"},{"comun":"Zopilote Rey","cientifico":"Sarcoramphus papa"},{"comun":"Zorzal Caripelado","cientifico":"Turdus nudigenis"},{"comun":"Zorzal Cuelliblanco Sureño","cientifico":"Turdus albicollis"},{"comun":"Zorzal de Hauxwell","cientifico":"Turdus hauxwelli"},{"comun":"Zorzal de Várzea","cientifico":"Turdus sanchezorum"},{"comun":"Zorzal Guayanés","cientifico":"Turdus arthuri"},{"comun":"Zorzal Imitador","cientifico":"Turdus lawrencii"},{"comun":"Zorzal Piquinegro","cientifico":"Turdus ignobilis"},{"comun":"Zorzal Sabiá","cientifico":"Turdus leucomelas"},{"comun":"Zorzal Ventricastaño","cientifico":"Turdus fulviventris"},{"comun":"Zorzalito Carigrís","cientifico":"Catharus minimus"},{"comun":"Zorzalito de Swainson","cientifico":"Catharus ustulatus"},{"comun":"Zorzalito Pinto","cientifico":"Catharus maculatus"},{"comun":"Zorzalito Piquigualdo","cientifico":"Catharus aurantiirostris"},{"comun":"Zorzalito Sombrío","cientifico":"Catharus fuscater"}];
 
-const LS_KEY = 'ave_avistamientos_v1';
-const LS_LUGARES = 'ave_lugares_v1';
+/* =========================================================================
+   ALMACENAMIENTO LOCAL — offline-first, una copia completa por dispositivo
+   -------------------------------------------------------------------------
+   Reglas de esta capa:
+   1. Nada se guarda "en la nube". Cada celular/PC tiene sus propios datos.
+   2. Toda escritura va a DOS sitios del mismo navegador: localStorage
+      (rápido, síncrono) e IndexedDB (respaldo, mucho más holgado). Si uno
+      se pierde o se llena, el otro reconstruye.
+   3. Ninguna escritura se da por buena sin confirmarla: si falla, la app
+      lo dice y NO limpia el formulario.
+   4. Nada se borra de verdad: eliminar marca `eliminado:true` (así el día
+      que se conecte a Supabase el borrado también se puede sincronizar).
+   5. Cada registro nace ya con la forma que necesitará Supabase
+      (uuid, creadoEn, actualizadoEn, dispositivo, sincronizado).
+      Ver docs/CONEXION_SUPABASE.md
+   ========================================================================= */
 
-function cargarAvistamientos(){
-  try{ return JSON.parse(localStorage.getItem(LS_KEY)) || []; }catch(e){ return []; }
+const APP_VERSION      = '2.0';
+const LS_KEY           = 'ave_avistamientos_v2';
+const LS_KEY_V1        = 'ave_avistamientos_v1';   // formato del demo anterior
+const LS_LUGARES       = 'ave_lugares_v2';
+const LS_LUGARES_V1    = 'ave_lugares_v1';
+const LS_DISPOSITIVO   = 'ave_dispositivo_id';
+const LS_BORRADOR      = 'ave_borrador_v1';
+const LS_META          = 'ave_meta_v1';
+const LS_MIGRADO_V1    = 'ave_migrado_v1';
+const LS_PUNTOS        = 'ave_puntos_v1';   // archivo aparte: un punto GPS por avistamiento
+const IDB_NOMBRE       = 'ave_monitoreo';
+const IDB_STORE        = 'respaldo';
+
+let ultimoErrorAlmacen = null;
+
+// ---------- utilidades ----------
+function esc(s){
+  return (s ?? '').toString()
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
-function guardarAvistamientos(lista){
-  localStorage.setItem(LS_KEY, JSON.stringify(lista));
+function uuid(){
+  if(self.crypto && crypto.randomUUID) return crypto.randomUUID();
+  if(self.crypto && crypto.getRandomValues){
+    const b = crypto.getRandomValues(new Uint8Array(16));
+    b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+    const h = Array.from(b, x => x.toString(16).padStart(2,'0')).join('');
+    return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random()*16|0; const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
 }
-function cargarLugares(){
+function ahora(){ return new Date().toISOString(); }
+
+// ---------- localStorage con verificación ----------
+function lsLeer(clave, porDefecto){
   try{
-    const l = JSON.parse(localStorage.getItem(LS_LUGARES));
-    if(l && l.length) return l;
-  }catch(e){}
-  return Array.from({length:10}, (_,i)=>`Sitio ${i+1}`);
+    const crudo = localStorage.getItem(clave);
+    if(crudo === null) return porDefecto;
+    return JSON.parse(crudo);
+  }catch(e){ return porDefecto; }
 }
-function guardarLugares(lista){
-  localStorage.setItem(LS_LUGARES, JSON.stringify(lista));
+function lsEscribir(clave, valor){
+  try{
+    localStorage.setItem(clave, JSON.stringify(valor));
+    ultimoErrorAlmacen = null;
+    return true;
+  }catch(e){
+    ultimoErrorAlmacen = (e && e.name === 'QuotaExceededError')
+      ? 'No queda espacio en el navegador. Exporta un respaldo JSON y purga registros ya exportados.'
+      : 'El navegador rechazó guardar (¿modo incógnito o almacenamiento bloqueado?). Exporta un respaldo JSON antes de cerrar.';
+    return false;
+  }
 }
 
-let avistamientos = cargarAvistamientos();
-let lugares = cargarLugares();
+// ---------- IndexedDB (espejo de respaldo) ----------
+let idbDisponible = null;   // null = sin probar · true/false = resultado
+function idbAbrir(){
+  return new Promise((resolve, reject) => {
+    if(!self.indexedDB){ idbDisponible = false; return reject(new Error('sin indexedDB')); }
+    const req = indexedDB.open(IDB_NOMBRE, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if(!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+    };
+    req.onsuccess = () => { idbDisponible = true; resolve(req.result); };
+    req.onerror   = () => { idbDisponible = false; reject(req.error); };
+  });
+}
+async function idbEscribir(clave, valor){
+  try{
+    const db = await idbAbrir();
+    await new Promise((res, rej) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(valor, clave);
+      tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+    });
+    db.close();
+    return true;
+  }catch(e){ return false; }
+}
+async function idbLeer(clave){
+  try{
+    const db = await idbAbrir();
+    const valor = await new Promise((res, rej) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const r = tx.objectStore(IDB_STORE).get(clave);
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+    db.close();
+    return valor;
+  }catch(e){ return undefined; }
+}
+
+// ---------- identidad del dispositivo ----------
+function idDispositivo(){
+  let id = null;
+  try{ id = localStorage.getItem(LS_DISPOSITIVO); }catch(e){}
+  if(!id){
+    id = uuid();
+    try{ localStorage.setItem(LS_DISPOSITIVO, id); }catch(e){}
+  }
+  return id;
+}
+
+// ---------- forma del registro ----------
+const ES_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function normalizarRegistro(r){
+  const t = r.creadoEn || ahora();
+  const idOk = typeof r.id === 'string' && ES_UUID.test(r.id);
+  return {
+    id:                idOk ? r.id : uuid(),
+    idLegacy:          r.idLegacy || (!idOk && r.id ? String(r.id) : null),
+    fechaHora:         r.fechaHora || '',
+    especieComun:      r.especieComun || '',
+    especieCientifico: r.especieCientifico || '',
+    lugar:             r.lugar || '',
+    individuos:        parseInt(r.individuos, 10) || 1,
+    estratificacion:   r.estratificacion || '',
+    comportamiento:    Array.isArray(r.comportamiento) ? r.comportamiento : [],
+    observadores:      r.observadores || '',
+    notas:             r.notas || '',
+    creadoEn:          t,
+    actualizadoEn:     r.actualizadoEn || t,
+    dispositivo:       r.dispositivo || idDispositivo(),
+    eliminado:         r.eliminado === true,
+    sincronizado:      r.sincronizado === true
+  };
+}
+
+// Une dos listas por id; ante el mismo id gana el `actualizadoEn` más reciente.
+// Es la misma regla que usará la sincronización con Supabase.
+function fusionar(a, b){
+  const mapa = new Map();
+  [...(a||[]), ...(b||[])].forEach(r0 => {
+    const r = normalizarRegistro(r0);
+    const clave = r.idLegacy || r.id;
+    const previo = mapa.get(clave);
+    if(!previo || (r.actualizadoEn || '') > (previo.actualizadoEn || '')) mapa.set(clave, r);
+  });
+  return Array.from(mapa.values());
+}
+
+// ---------- persistencia (localStorage + espejo IndexedDB) ----------
+function meta(){ return lsLeer(LS_META, {ultimoGuardado:null, ultimaSync:null}); }
+
+function persistirAvistamientos(){
+  const ok = lsEscribir(LS_KEY, avistamientos);
+  if(ok){
+    const m = meta(); m.ultimoGuardado = ahora(); lsEscribir(LS_META, m);
+    idbEscribir('avistamientos', avistamientos);   // espejo, sin bloquear
+    ocultarBanner();
+  }else{
+    // localStorage falló: al menos deja la copia en IndexedDB y avisa fuerte.
+    idbEscribir('avistamientos', avistamientos);
+    mostrarBanner('NO se pudo guardar en este navegador. ' + ultimoErrorAlmacen, 'error');
+  }
+  return ok;
+}
+function persistirLugares(){
+  const ok = lsEscribir(LS_LUGARES, lugares);
+  if(ok) idbEscribir('lugares', lugares);
+  return ok;
+}
+
+/* ---------- Puntos GPS ----------
+   Van en su PROPIO almacén (`ave_puntos_v1`), no dentro del avistamiento:
+   son otra capa de datos y el día que esto suba a PostGIS será otra tabla
+   (ras.puntos_avistamiento_aves), con su geometría y su índice espacial.
+   El vínculo es `avistamientoId`. Uno por avistamiento: volver a tomar el
+   punto reemplaza el anterior. */
+function normalizarPunto(p){
+  const t = p.capturadoEn || ahora();
+  const idOk = typeof p.id === 'string' && ES_UUID.test(p.id);
+  const num = v => (v === null || v === undefined || v === '' || !isFinite(Number(v))) ? null : Number(v);
+  return {
+    id:             idOk ? p.id : uuid(),
+    avistamientoId: p.avistamientoId || null,
+    latitud:        num(p.latitud),
+    longitud:       num(p.longitud),
+    precisionM:     num(p.precisionM),
+    altitudM:       num(p.altitudM),
+    precisionAltM:  num(p.precisionAltM),
+    rumbo:          num(p.rumbo),
+    velocidad:      num(p.velocidad),
+    fuente:         p.fuente || 'gps',
+    capturadoEn:    t,
+    actualizadoEn:  p.actualizadoEn || t,
+    dispositivo:    p.dispositivo || idDispositivo(),
+    eliminado:      p.eliminado === true,
+    sincronizado:   p.sincronizado === true
+  };
+}
+
+function fusionarPuntos(a, b){
+  const mapa = new Map();
+  [...(a||[]), ...(b||[])].forEach(p0 => {
+    const p = normalizarPunto(p0);
+    if(p.latitud === null || p.longitud === null) return;   // un punto sin coordenada no es un punto
+    const clave = p.avistamientoId || p.id;
+    const previo = mapa.get(clave);
+    if(!previo || (p.actualizadoEn || '') > (previo.actualizadoEn || '')) mapa.set(clave, p);
+  });
+  return Array.from(mapa.values());
+}
+
+function persistirPuntos(){
+  const ok = lsEscribir(LS_PUNTOS, puntos);
+  if(ok){ idbEscribir('puntos', puntos); ocultarBanner(); }
+  else{
+    idbEscribir('puntos', puntos);
+    mostrarBanner('NO se pudo guardar el punto GPS en este navegador. ' + ultimoErrorAlmacen, 'error');
+  }
+  return ok;
+}
+
+function puntoDe(avistamientoId){
+  return puntos.find(p => p.avistamientoId === avistamientoId && !p.eliminado) || null;
+}
+
+function guardarPunto(avistamientoId, datos){
+  const p = normalizarPunto(Object.assign({avistamientoId, fuente:'gps', actualizadoEn: ahora()}, datos));
+  if(p.latitud === null || p.longitud === null) return null;
+  puntos = puntos.filter(x => x.avistamientoId !== avistamientoId).concat([p]);
+  // el avistamiento vuelve a la cola de subida: su punto cambió
+  const r = avistamientos.find(x => x.id === avistamientoId);
+  if(r && r.sincronizado){ r.sincronizado = false; persistirAvistamientos(); }
+  persistirPuntos();
+  return p;
+}
+
+// Migración del demo v1 → v2. Corre UNA sola vez: si volviera a correr,
+// los registros migrados recibirían un uuid nuevo en cada apertura y
+// resucitarían los que se hubieran eliminado. Las claves v1 no se borran:
+// quedan como copia fría.
+function migrarV1(){
+  if(lsLeer(LS_MIGRADO_V1, false) === true) return;
+  const viejos = lsLeer(LS_KEY_V1, null);
+  if(Array.isArray(viejos) && viejos.length){
+    const antes = avistamientos.length;
+    avistamientos = fusionar(avistamientos, viejos);
+    if(avistamientos.length !== antes || !lsLeer(LS_KEY, null)) persistirAvistamientos();
+  }
+  const lugaresViejos = lsLeer(LS_LUGARES_V1, null);
+  if(Array.isArray(lugaresViejos) && lugaresViejos.length && !lsLeer(LS_LUGARES, null)){
+    lugares = lugaresViejos;
+    persistirLugares();
+  }
+  lsEscribir(LS_MIGRADO_V1, true);
+}
+
+// Arranque: pide almacenamiento persistente y reconcilia con el espejo.
+async function arrancarAlmacen(){
+  try{
+    if(navigator.storage && navigator.storage.persist){
+      const yaEs = await navigator.storage.persisted();
+      if(!yaEs) await navigator.storage.persist();
+    }
+  }catch(e){}
+
+  const espejo = await idbLeer('avistamientos');
+  if(Array.isArray(espejo) && espejo.length){
+    const antes = avistamientos.length;
+    const unido = fusionar(avistamientos, espejo);
+    // Adopta el resultado si cambió ALGO (no solo si hay más registros): así
+    // también entra una versión más reciente de un registro ya existente.
+    const huella = l => JSON.stringify(l.map(r => [r.id, r.actualizadoEn, r.eliminado]).sort());
+    if(huella(unido) !== huella(avistamientos)){
+      avistamientos = unido;
+      persistirAvistamientos();
+      if(unido.length > antes){
+        mostrarBanner(`Se recuperaron ${unido.length - antes} avistamiento(s) desde la copia interna del navegador.`, 'ok');
+      }
+      renderHistorial();
+    }
+  }else if(avistamientos.length){
+    idbEscribir('avistamientos', avistamientos);   // primer espejo
+  }
+
+  const espejoPtos = await idbLeer('puntos');
+  if(Array.isArray(espejoPtos) && espejoPtos.length){
+    const unido = fusionarPuntos(puntos, espejoPtos);
+    if(unido.length !== puntos.length){ puntos = unido; persistirPuntos(); renderHistorial(); }
+  }else if(puntos.length){
+    idbEscribir('puntos', puntos);
+  }
+
+  const espejoLug = await idbLeer('lugares');
+  if(Array.isArray(espejoLug) && espejoLug.length && !lsLeer(LS_LUGARES, null)){
+    lugares = espejoLug;
+    persistirLugares();
+    pintarSelectLugares(document.getElementById('lugar-muestreo'), false);
+    pintarSelectLugares(document.getElementById('filtro-lugar'), true);
+  }
+  renderEstadoAlmacen();
+}
+
+// ---------- avisos ----------
+function mostrarBanner(texto, tipo){
+  const b = document.getElementById('banner');
+  b.textContent = texto;
+  b.className = 'banner ' + (tipo === 'error' ? 'banner-error' : 'banner-ok');
+}
+function ocultarBanner(){
+  const b = document.getElementById('banner');
+  if(b.classList.contains('banner-error')) return;  // un error se queda hasta que se resuelva
+  b.className = 'banner oculto';
+}
+let toastTimer = null;
+function toast(texto){
+  const t = document.getElementById('toast');
+  t.textContent = texto;
+  t.classList.remove('oculto');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> t.classList.add('oculto'), 2600);
+}
+
+// ---------- estado inicial ----------
+let avistamientos = (lsLeer(LS_KEY, []) || []).map(normalizarRegistro);
+let lugares = (function(){
+  const l = lsLeer(LS_LUGARES, null);
+  if(Array.isArray(l) && l.length) return l;
+  return Array.from({length:10}, (_,i)=>`Sitio ${i+1}`);
+})();
+let puntos = (lsLeer(LS_PUNTOS, []) || []).map(normalizarPunto).filter(p => p.latitud !== null && p.longitud !== null);
 let especieSeleccionada = null;
+migrarV1();
+
+function activos(){ return avistamientos.filter(r => !r.eliminado); }
 
 // ---------- Navegación ----------
 document.querySelectorAll('nav button').forEach(btn=>{
@@ -318,9 +699,10 @@ document.querySelectorAll('nav button').forEach(btn=>{
     btn.classList.add('active');
     document.querySelectorAll('main section').forEach(s=>s.classList.add('oculto'));
     document.getElementById('tab-'+btn.dataset.tab).classList.remove('oculto');
+    if(btn.dataset.tab === 'registro')  iniciarGps(); else detenerGps();
     if(btn.dataset.tab === 'historial') renderHistorial();
     if(btn.dataset.tab === 'resumen') renderResumen();
-    if(btn.dataset.tab === 'config') renderConfigLugares();
+    if(btn.dataset.tab === 'config'){ renderConfigLugares(); renderEstadoAlmacen(); }
   });
 });
 
@@ -335,15 +717,15 @@ buscarInput.addEventListener('input', ()=>{
   const q = normalizar(buscarInput.value.trim());
   especieSeleccionada = null;
   if(q.length < 2){ listaEspeciesBox.classList.add('oculto'); listaEspeciesBox.innerHTML=''; return; }
-  const resultados = ESPECIES.filter(e => normalizar(e.comun).includes(q) || normalizar(e.cientifico).includes(q)).slice(0, 40);
+  const resultados = ESPECIES.filter(e => normalizar(e.comun).includes(q) || normalizar(e.cientifico).includes(q)).slice(0,40);
   if(!resultados.length){
-    listaEspeciesBox.innerHTML = '<div style="color:#8a8f86;">Sin coincidencias — puedes dejar el nombre escrito como texto libre.</div>';
+    listaEspeciesBox.innerHTML = '<div style="color:#8a8f86;">Sin coincidencias — puedes dejar el nombre escrito tal cual.</div>';
     listaEspeciesBox.classList.remove('oculto');
     return;
   }
   listaEspeciesBox.innerHTML = resultados.map(e =>
-    `<div data-comun="${e.comun.replace(/"/g,'&quot;')}" data-cientifico="${e.cientifico.replace(/"/g,'&quot;')}">
-       ${e.comun}<div class="cientifico">${e.cientifico}</div>
+    `<div data-comun="${esc(e.comun)}" data-cientifico="${esc(e.cientifico)}">
+       ${esc(e.comun)}<div class="cientifico">${esc(e.cientifico)}</div>
      </div>`).join('');
   listaEspeciesBox.classList.remove('oculto');
 });
@@ -366,17 +748,19 @@ function elegirEspecie(comun, cientifico){
   buscarInput.value = '';
   listaEspeciesBox.classList.add('oculto');
   listaEspeciesBox.innerHTML = '';
+  guardarBorrador();
 }
 document.getElementById('btn-quitar-especie').addEventListener('click', ()=>{
   especieSeleccionada = null;
   document.getElementById('especie-elegida-box').classList.add('oculto');
+  guardarBorrador();
 });
 
 // ---------- Selects de lugar ----------
 function pintarSelectLugares(select, incluirTodos){
   const actual = select.value;
   select.innerHTML = (incluirTodos ? '<option value="">Todos los lugares</option>' : '<option value="">Selecciona...</option>')
-    + lugares.map(l => `<option value="${l.replace(/"/g,'&quot;')}">${l}</option>`).join('');
+    + lugares.map(l => `<option value="${esc(l)}">${esc(l)}</option>`).join('');
   if(actual) select.value = actual;
 }
 pintarSelectLugares(document.getElementById('lugar-muestreo'), false);
@@ -389,6 +773,178 @@ function fechaHoraLocalISO(){
   return d.toISOString().slice(0,16);
 }
 document.getElementById('fecha-hora').value = fechaHoraLocalISO();
+
+/* ---------- Borrador del formulario ----------
+   Si el celular se bloquea, se queda sin batería o el navegador mata la
+   pestaña a mitad de un registro, lo escrito no se pierde. */
+let borradorTimer = null;
+function guardarBorrador(){
+  clearTimeout(borradorTimer);
+  borradorTimer = setTimeout(()=>{
+    lsEscribir(LS_BORRADOR, {
+      fechaHora:       document.getElementById('fecha-hora').value,
+      lugar:           document.getElementById('lugar-muestreo').value,
+      individuos:      document.getElementById('num-individuos').value,
+      estratificacion: document.getElementById('estratificacion').value,
+      comportamiento:  Array.from(document.querySelectorAll('.fila-check input:checked')).map(c=>c.value),
+      observadores:    document.getElementById('observadores').value,
+      notas:           document.getElementById('notas').value,
+      especie:         especieSeleccionada,
+      textoEspecie:    buscarInput.value
+    });
+  }, 400);
+}
+function limpiarBorrador(){
+  clearTimeout(borradorTimer);
+  try{ localStorage.removeItem(LS_BORRADOR); }catch(e){}
+}
+function restaurarBorrador(){
+  const b = lsLeer(LS_BORRADOR, null);
+  if(!b) return;
+  const hayAlgo = b.observadores || b.notas || b.especie || b.textoEspecie || b.lugar || b.estratificacion;
+  if(!hayAlgo){ limpiarBorrador(); return; }
+  if(b.fechaHora)       document.getElementById('fecha-hora').value = b.fechaHora;
+  if(b.lugar)           document.getElementById('lugar-muestreo').value = b.lugar;
+  if(b.individuos)      document.getElementById('num-individuos').value = b.individuos;
+  if(b.estratificacion) document.getElementById('estratificacion').value = b.estratificacion;
+  if(b.observadores)    document.getElementById('observadores').value = b.observadores;
+  if(b.notas)           document.getElementById('notas').value = b.notas;
+  if(b.textoEspecie)    buscarInput.value = b.textoEspecie;
+  (b.comportamiento||[]).forEach(v => {
+    const chk = document.querySelector(`.fila-check input[value="${v}"]`);
+    if(chk) chk.checked = true;
+  });
+  if(b.especie && b.especie.comun) elegirEspecie(b.especie.comun, b.especie.cientifico);
+  mostrarBanner('Se restauró un registro a medio llenar que quedó sin guardar.', 'ok');
+}
+document.getElementById('form-avistamiento').addEventListener('input', guardarBorrador);
+document.getElementById('form-avistamiento').addEventListener('change', guardarBorrador);
+restaurarBorrador();
+
+/* ---------- Motor GPS ----------
+   Se queda escuchando mientras la pestaña Registrar está a la vista, para que
+   al guardar ya haya una posición fijada y no toque esperar. Al cambiar de
+   pestaña o al pasar la app a segundo plano se apaga (batería). */
+let ultimaPosicion = null;    // {latitud, longitud, precisionM, ..., ts}
+let estadoGps = 'inactivo';
+let watchGps  = null;
+
+function gpsDisponible(){
+  if(!('geolocation' in navigator)) return 'no_soportado';
+  const local = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  if(!window.isSecureContext && !local) return 'no_seguro';
+  return 'ok';
+}
+
+function textoGps(estado){
+  switch(estado){
+    case 'no_soportado': return 'Este navegador no entrega ubicación.';
+    case 'no_seguro':    return 'El navegador bloquea el GPS porque la app se abrió por http://. Solo funciona en https:// (o abriendo el archivo directamente en el celular). Ver README.';
+    case 'denegado':     return 'Permiso de ubicación denegado. Actívalo en los ajustes del navegador para este sitio y toca Reintentar.';
+    case 'sin_senal':    return 'Sin señal GPS todavía. Bajo dosel cerrado puede tardar. Puedes guardar igual: el punto se toma después desde el Historial.';
+    case 'lento':        return 'El GPS está tardando. Sal a cielo abierto un momento o guarda y toma el punto después desde el Historial.';
+    case 'buscando':     return 'Buscando señal GPS…';
+    default:             return '';
+  }
+}
+
+function iniciarGps(){
+  const d = gpsDisponible();
+  if(d !== 'ok'){ estadoGps = d; renderGps(); return; }
+  if(watchGps !== null) return;
+  if(estadoGps !== 'ok') estadoGps = 'buscando';
+  renderGps();
+  watchGps = navigator.geolocation.watchPosition(
+    pos => {
+      const c = pos.coords;
+      ultimaPosicion = {
+        latitud:       c.latitude,
+        longitud:      c.longitude,
+        precisionM:    c.accuracy         != null ? Math.round(c.accuracy) : null,
+        altitudM:      c.altitude         != null ? Math.round(c.altitude) : null,
+        precisionAltM: c.altitudeAccuracy != null ? Math.round(c.altitudeAccuracy) : null,
+        rumbo:         c.heading,
+        velocidad:     c.speed,
+        ts:            pos.timestamp || Date.now()
+      };
+      estadoGps = 'ok';
+      renderGps();
+    },
+    err => {
+      estadoGps = err.code === 1 ? 'denegado' : err.code === 3 ? 'lento' : 'sin_senal';
+      renderGps();
+    },
+    {enableHighAccuracy:true, maximumAge:10000, timeout:25000}
+  );
+}
+
+function detenerGps(){
+  if(watchGps !== null){ navigator.geolocation.clearWatch(watchGps); watchGps = null; }
+}
+
+function edadFix(){
+  return ultimaPosicion ? Math.round((Date.now() - ultimaPosicion.ts)/1000) : null;
+}
+
+function renderGps(){
+  const caja = document.getElementById('gps-caja');
+  if(!caja) return;
+  const malo = ['denegado','no_seguro','no_soportado'].includes(estadoGps);
+  const luz  = estadoGps === 'ok' ? 'ok' : (estadoGps === 'buscando' ? 'buscando' : (malo ? 'mal' : 'buscando'));
+
+  if(estadoGps === 'ok' && ultimaPosicion){
+    const s = edadFix();
+    const edad = s < 60 ? `hace ${s} s` : `hace ${Math.round(s/60)} min`;
+    const p = ultimaPosicion.precisionM;
+    caja.innerHTML = `
+      <div class="titulo"><span class="gps-luz ok"></span> Ubicación lista
+        ${p != null ? `<span class="pill ${p <= 20 ? 'ok' : 'warn'}">±${p} m</span>` : ''}
+        <span class="hint" style="margin:0;">${esc(edad)}</span></div>
+      <div class="gps-coords mono">${ultimaPosicion.latitud.toFixed(6)}, ${ultimaPosicion.longitud.toFixed(6)}${
+        ultimaPosicion.altitudM != null ? ` · ${ultimaPosicion.altitudM} m s.n.m.` : ''}</div>
+      <div class="hint">Se guardará junto al avistamiento, en la capa de puntos.</div>`;
+    return;
+  }
+
+  caja.innerHTML = `
+    <div class="titulo"><span class="gps-luz ${luz}"></span> ${estadoGps === 'buscando' ? 'Buscando señal GPS…' : 'Sin ubicación'}</div>
+    <div class="hint">${esc(textoGps(estadoGps))}</div>
+    ${malo || estadoGps === 'sin_senal' || estadoGps === 'lento'
+      ? '<button type="button" class="btn ghost small" id="btn-gps-reintentar" style="margin-top:8px;">Reintentar GPS</button>' : ''}`;
+
+  const btn = document.getElementById('btn-gps-reintentar');
+  if(btn) btn.addEventListener('click', ()=>{ detenerGps(); estadoGps = 'buscando'; renderGps(); iniciarGps(); });
+}
+
+// Toma la posición ACTUAL para un avistamiento ya guardado (el punto llegó tarde).
+function tomarGpsPara(avistamientoId){
+  const d = gpsDisponible();
+  if(d !== 'ok'){ alert(textoGps(d)); return; }
+  if(!confirm('Se guardará la ubicación ACTUAL del dispositivo para este avistamiento.\n\nSolo tiene sentido si sigues en el mismo sitio donde viste el ave. ¿Continuar?')) return;
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const c = pos.coords;
+      guardarPunto(avistamientoId, {
+        latitud: c.latitude, longitud: c.longitude,
+        precisionM:    c.accuracy         != null ? Math.round(c.accuracy) : null,
+        altitudM:      c.altitude         != null ? Math.round(c.altitude) : null,
+        precisionAltM: c.altitudeAccuracy != null ? Math.round(c.altitudeAccuracy) : null,
+        rumbo: c.heading, velocidad: c.speed,
+        capturadoEn: new Date(pos.timestamp || Date.now()).toISOString()
+      });
+      renderHistorial(); renderEstadoAlmacen();
+      toast('Punto GPS guardado.');
+    },
+    err => alert('No se pudo obtener la ubicación: ' + (err.message || 'error desconocido')),
+    {enableHighAccuracy:true, timeout:25000, maximumAge:0}
+  );
+}
+
+document.addEventListener('visibilitychange', ()=>{
+  const enRegistro = !document.getElementById('tab-registro').classList.contains('oculto');
+  if(document.hidden) detenerGps();
+  else if(enRegistro) iniciarGps();
+});
 
 // ---------- Guardar avistamiento ----------
 document.getElementById('form-avistamiento').addEventListener('submit', (ev)=>{
@@ -405,9 +961,10 @@ document.getElementById('form-avistamiento').addEventListener('submit', (ev)=>{
   }
 
   const comportamientos = Array.from(document.querySelectorAll('.fila-check input:checked')).map(c=>c.value);
+  const t = ahora();
 
-  const registro = {
-    id: Date.now() + '-' + Math.random().toString(36).slice(2,8),
+  const registro = normalizarRegistro({
+    id: uuid(),
     fechaHora: document.getElementById('fecha-hora').value,
     especieComun: comun,
     especieCientifico: cientifico,
@@ -417,10 +974,21 @@ document.getElementById('form-avistamiento').addEventListener('submit', (ev)=>{
     comportamiento: comportamientos,
     observadores: document.getElementById('observadores').value.trim(),
     notas: document.getElementById('notas').value.trim(),
-  };
+    creadoEn: t,
+    actualizadoEn: t
+  });
 
   avistamientos.push(registro);
-  guardarAvistamientos(avistamientos);
+
+  // Si el navegador no pudo guardar, el registro se retira de la lista y el
+  // formulario NO se limpia: es preferible reintentar que perder el dato.
+  if(!persistirAvistamientos()){
+    avistamientos.pop();
+    lsEscribir(LS_KEY, avistamientos);
+    alert('No se pudo guardar el avistamiento en este dispositivo.\n\n' + (ultimoErrorAlmacen || '') +
+          '\n\nEl formulario queda como está para que puedas reintentar o exportar un respaldo JSON.');
+    return;
+  }
 
   // reset del formulario, conservando fecha/hora y observadores para registros seguidos
   const obsPrevios = registro.observadores;
@@ -429,8 +997,23 @@ document.getElementById('form-avistamiento').addEventListener('submit', (ev)=>{
   document.getElementById('observadores').value = obsPrevios;
   especieSeleccionada = null;
   document.getElementById('especie-elegida-box').classList.add('oculto');
+  limpiarBorrador();
 
-  alert('Avistamiento guardado.');
+  // El punto GPS va a su propio almacén, anclado por avistamientoId.
+  let punto = null;
+  if(ultimaPosicion){
+    punto = guardarPunto(registro.id, Object.assign({}, ultimaPosicion, {
+      capturadoEn: new Date(ultimaPosicion.ts).toISOString()
+    }));
+  }
+  renderEstadoAlmacen();
+
+  if(punto){
+    const viejo = edadFix() > 300 ? ' (posición de hace rato — verifícala)' : '';
+    toast(`Guardado con GPS ±${punto.precisionM ?? '?'} m${viejo} — ${activos().length} avistamiento(s)`);
+  }else{
+    toast(`Guardado SIN coordenada — ${activos().length} avistamiento(s)`);
+  }
 });
 
 // ---------- Historial ----------
@@ -441,7 +1024,7 @@ function renderHistorial(){
   const filtroLugar = document.getElementById('filtro-lugar').value;
   const filtroEspecie = normalizar(document.getElementById('filtro-especie').value);
 
-  let lista = avistamientos.slice().sort((a,b)=> (b.fechaHora||'').localeCompare(a.fechaHora||''));
+  let lista = activos().sort((a,b)=> (b.fechaHora||'').localeCompare(a.fechaHora||''));
   if(filtroLugar) lista = lista.filter(r => r.lugar === filtroLugar);
   if(filtroEspecie) lista = lista.filter(r => normalizar(r.especieComun).includes(filtroEspecie) || normalizar(r.especieCientifico).includes(filtroEspecie));
 
@@ -456,27 +1039,46 @@ function renderHistorial(){
 
   tbody.innerHTML = lista.map(r => `
     <tr>
-      <td>${(r.fechaHora||'').replace('T',' ')}</td>
-      <td><strong>${r.especieComun}</strong><br><span style="font-style:italic;color:#6b7368;font-size:.8rem;">${r.especieCientifico||''}</span></td>
-      <td>${r.lugar||''}</td>
-      <td>${r.individuos}</td>
-      <td>${r.estratificacion||''}</td>
-      <td>${(r.comportamiento||[]).map(c=>`<span class="badge" title="${NOMBRES_COMPORTAMIENTO[c]||c}">${c}</span>`).join('')}</td>
-      <td>${r.observadores||''}</td>
-      <td>${r.notas||''}</td>
-      <td><button class="cerrar" data-id="${r.id}" title="Eliminar">✕</button></td>
+      <td>${esc((r.fechaHora||'').replace('T',' '))}</td>
+      <td><strong>${esc(r.especieComun)}</strong><br><span style="font-style:italic;color:#6b7368;font-size:.8rem;">${esc(r.especieCientifico)}</span></td>
+      <td>${esc(r.lugar)}</td>
+      <td>${esc(r.individuos)}</td>
+      <td>${esc(r.estratificacion)}</td>
+      <td>${(r.comportamiento||[]).map(c=>`<span class="badge" title="${esc(NOMBRES_COMPORTAMIENTO[c]||c)}">${esc(c)}</span>`).join('')}</td>
+      <td>${esc(r.observadores)}</td>
+      <td>${esc(r.notas)}</td>
+      <td>${celdaGps(r)}</td>
+      <td><button class="cerrar" data-id="${esc(r.id)}" title="Eliminar">&#10005;</button></td>
     </tr>
   `).join('');
+
+  tbody.querySelectorAll('button[data-gps]').forEach(btn=>{
+    btn.addEventListener('click', ()=> tomarGpsPara(btn.dataset.gps));
+  });
 
   tbody.querySelectorAll('button[data-id]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       if(!confirm('¿Eliminar este avistamiento?')) return;
-      avistamientos = avistamientos.filter(r => r.id !== btn.dataset.id);
-      guardarAvistamientos(avistamientos);
+      const r = avistamientos.find(x => x.id === btn.dataset.id);
+      if(!r) return;
+      r.eliminado = true;              // borrado suave: sincronizable más adelante
+      r.actualizadoEn = ahora();
+      r.sincronizado = false;
+      persistirAvistamientos();
       renderHistorial();
+      renderEstadoAlmacen();
     });
   });
 }
+function celdaGps(r){
+  const p = puntoDe(r.id);
+  if(p){
+    return `<span class="coord mono" title="${esc(p.latitud.toFixed(6) + ', ' + p.longitud.toFixed(6))}">${p.latitud.toFixed(5)}<br>${p.longitud.toFixed(5)}</span>` +
+           (p.precisionM != null ? `<div class="hint">±${p.precisionM} m</div>` : '');
+  }
+  return `<button type="button" class="btn ghost small" data-gps="${esc(r.id)}">Tomar GPS</button>`;
+}
+
 document.getElementById('filtro-lugar').addEventListener('change', renderHistorial);
 document.getElementById('filtro-especie').addEventListener('input', renderHistorial);
 document.getElementById('btn-limpiar-filtros').addEventListener('click', ()=>{
@@ -485,30 +1087,189 @@ document.getElementById('btn-limpiar-filtros').addEventListener('click', ()=>{
   renderHistorial();
 });
 
+// ---------- Descarga de archivos ----------
+function descargar(blob, nombre){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nombre;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=> URL.revokeObjectURL(url), 4000);
+}
+
 // ---------- Exportar CSV ----------
 document.getElementById('btn-exportar-csv').addEventListener('click', ()=>{
-  if(!avistamientos.length){ alert('No hay datos para exportar.'); return; }
-  const encabezados = ['Fecha y hora','Nombre común','Nombre científico','Lugar de muestreo','# individuos','Estratificación','Comportamiento','Observador(es)','Notas'];
-  const filas = avistamientos.map(r => [
-    r.fechaHora, r.especieComun, r.especieCientifico, r.lugar, r.individuos, r.estratificacion,
-    (r.comportamiento||[]).join('|'), r.observadores, r.notas
-  ]);
+  const lista = activos();
+  if(!lista.length){ alert('No hay datos para exportar.'); return; }
+  const encabezados = ['id','Fecha y hora','Nombre común','Nombre científico','Lugar de muestreo','# individuos','Estratificación','Comportamiento','Observador(es)','Notas','Latitud','Longitud','Precisión GPS (m)','Altitud (m)','GPS tomado en','Creado en','Dispositivo'];
+  const filas = lista.map(r => {
+    const p = puntoDe(r.id);
+    return [
+      r.id, r.fechaHora, r.especieComun, r.especieCientifico, r.lugar, r.individuos, r.estratificacion,
+      (r.comportamiento||[]).join('|'), r.observadores, r.notas,
+      p ? p.latitud : '', p ? p.longitud : '', p ? p.precisionM : '', p ? p.altitudM : '', p ? p.capturadoEn : '',
+      r.creadoEn, r.dispositivo
+    ];
+  });
   const csv = [encabezados, ...filas].map(fila =>
     fila.map(v => `"${(v??'').toString().replace(/"/g,'""')}"`).join(',')
   ).join('\r\n');
-  const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8;'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `avistamientos_aves_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
+  descargar(new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8;'}),
+            `avistamientos_aves_${new Date().toISOString().slice(0,10)}.csv`);
 });
+
+// ---------- Exportar GeoJSON (capa de puntos para QGIS / PostGIS) ----------
+document.getElementById('btn-exportar-geojson').addEventListener('click', ()=>{
+  const feats = activos().map(r => {
+    const p = puntoDe(r.id);
+    if(!p) return null;
+    return {
+      type: 'Feature',
+      geometry: {type: 'Point', coordinates: [p.longitud, p.latitud]},
+      properties: {
+        avistamiento_id:   r.id,
+        fecha_hora:        r.fechaHora,
+        nombre_comun:      r.especieComun,
+        nombre_cientifico: r.especieCientifico,
+        lugar:             r.lugar,
+        individuos:        r.individuos,
+        estratificacion:   r.estratificacion,
+        comportamiento:    (r.comportamiento||[]).join('|'),
+        observadores:      r.observadores,
+        notas:             r.notas,
+        precision_m:       p.precisionM,
+        altitud_m:         p.altitudM,
+        gps_capturado_en:  p.capturadoEn,
+        dispositivo:       r.dispositivo
+      }
+    };
+  }).filter(Boolean);
+
+  if(!feats.length){ alert('Todavía no hay avistamientos con coordenada.'); return; }
+
+  const fc = {
+    type: 'FeatureCollection',
+    name: 'avistamientos_aves',
+    crs: {type:'name', properties:{name:'urn:ogc:def:crs:OGC:1.3:CRS84'}},   // WGS84 lon/lat = EPSG:4326
+    features: feats
+  };
+  descargar(new Blob([JSON.stringify(fc, null, 2)], {type:'application/geo+json'}),
+            `avistamientos_aves_${new Date().toISOString().slice(0,10)}.geojson`);
+});
+
+// ---------- Curva de acumulación de especies ----------
+// Por jornada: cuántas especies distintas se llevan acumuladas hasta ese día.
+function serieAcumulacion(lista){
+  const porDia = new Map();
+  lista.forEach(r => {
+    const dia = (r.fechaHora || '').slice(0,10);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(dia)) return;
+    const taxon = normalizar(r.especieCientifico || r.especieComun);
+    if(!taxon) return;
+    if(!porDia.has(dia)) porDia.set(dia, {taxones:new Set(), registros:0});
+    const d = porDia.get(dia);
+    d.taxones.add(taxon);
+    d.registros++;
+  });
+  const vistas = new Set();
+  return Array.from(porDia.keys()).sort().map(dia => {
+    const d = porDia.get(dia);
+    let nuevas = 0;
+    d.taxones.forEach(t => { if(!vistas.has(t)){ vistas.add(t); nuevas++; } });
+    return {dia, acumuladas: vistas.size, nuevas, registros: d.registros};
+  });
+}
+
+function fechaCorta(iso){
+  const [a,m,d] = iso.split('-');
+  return `${d}/${m}`;
+}
+
+function renderAcumulacion(){
+  const cont = document.getElementById('grafico-acumulacion');
+  const pie  = document.getElementById('acum-pie');
+  if(!cont) return;
+
+  const sel = document.getElementById('acum-lugar');
+  const filtro = sel ? sel.value : '';
+  const serie = serieAcumulacion(activos().filter(r => !filtro || r.lugar === filtro));
+
+  if(!serie.length){
+    cont.innerHTML = '<div class="vacio">Sin datos aún — la curva aparece con el primer avistamiento que tenga fecha.</div>';
+    pie.textContent = '';
+    return;
+  }
+
+  const W=720, H=320, ml=46, mr=18, mt=18, mb=46;
+  const iw = W-ml-mr, ih = H-mt-mb;
+
+  const ms   = d => new Date(d + 'T00:00:00').getTime();
+  const t0   = ms(serie[0].dia);
+  const t1   = ms(serie[serie.length-1].dia);
+  const span = Math.max(t1 - t0, 1);
+  const topY = Math.max(serie[serie.length-1].acumuladas, 1);
+  const paso = Math.max(1, Math.ceil(topY/5));
+  const maxY = Math.ceil(topY/paso)*paso;
+
+  const pad = 14;   // que el primer y el ultimo punto no queden pegados al marco
+  const X = d => serie.length === 1 ? ml + iw/2 : ml + pad + (ms(d) - t0)/span * (iw - 2*pad);
+  const Y = v => mt + ih - (v/maxY)*ih;
+
+  const pts = serie.map(s => [X(s.dia), Y(s.acumuladas)]);
+  const linea = pts.map((p,i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+  const area  = serie.length > 1
+    ? `M${pts[0][0].toFixed(1)},${(mt+ih).toFixed(1)} ` +
+      pts.map(p => `L${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ') +
+      ` L${pts[pts.length-1][0].toFixed(1)},${(mt+ih).toFixed(1)} Z`
+    : '';
+
+  let ticksY = '';
+  for(let v = 0; v <= maxY; v += paso){
+    const y = Y(v);
+    ticksY += `<line class="rejilla" x1="${ml}" y1="${y.toFixed(1)}" x2="${ml+iw}" y2="${y.toFixed(1)}"/>` +
+              `<text class="etiqueta" x="${ml-8}" y="${(y+4).toFixed(1)}" text-anchor="end">${v}</text>`;
+  }
+
+  // Como máximo 6 fechas en el eje X, para que no se encimen.
+  const salto = Math.max(1, Math.ceil(serie.length/6));
+  let ticksX = '';
+  serie.forEach((s,i) => {
+    if(i % salto !== 0 && i !== serie.length-1) return;
+    const x = X(s.dia);
+    ticksX += `<text class="etiqueta" x="${x.toFixed(1)}" y="${mt+ih+18}" text-anchor="middle">${fechaCorta(s.dia)}</text>`;
+  });
+
+  const circulos = serie.map((s,i) => `
+    <circle class="punto" cx="${pts[i][0].toFixed(1)}" cy="${pts[i][1].toFixed(1)}" r="4.5">
+      <title>${esc(s.dia)} — ${s.acumuladas} especie(s) acumuladas (+${s.nuevas} nueva(s), ${s.registros} registro(s))</title>
+    </circle>`).join('');
+
+  cont.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img"
+         aria-label="Curva de acumulación de especies en el tiempo">
+      ${ticksY}
+      ${area ? `<path class="area" d="${area}"/>` : ''}
+      ${serie.length > 1 ? `<path class="linea" d="${linea}"/>` : ''}
+      ${circulos}
+      <line class="eje" x1="${ml}" y1="${mt}" x2="${ml}" y2="${mt+ih}"/>
+      <line class="eje" x1="${ml}" y1="${mt+ih}" x2="${ml+iw}" y2="${mt+ih}"/>
+      ${ticksX}
+      <text class="etiqueta-eje" x="${ml}" y="${mt-6}" text-anchor="start">especies acumuladas</text>
+      <text class="etiqueta-eje" x="${ml+iw}" y="${H-8}" text-anchor="end">fecha de muestreo</text>
+    </svg>`;
+
+  const ultima = serie[serie.length-1];
+  pie.innerHTML = `<b>${ultima.acumuladas}</b> especie(s) acumuladas en <b>${serie.length}</b> jornada(s) con registros` +
+    (serie.length > 1 ? ` · la última aportó ${ultima.nuevas} especie(s) nueva(s)` : '') +
+    (filtro ? ` · filtrado por ${esc(filtro)}` : '');
+}
 
 // ---------- Resumen ----------
 function renderResumen(){
-  const totalRegistros = avistamientos.length;
-  const totalIndividuos = avistamientos.reduce((s,r)=> s + (r.individuos||0), 0);
-  const especiesUnicas = new Set(avistamientos.map(r => r.especieComun)).size;
-  const lugaresUsados = new Set(avistamientos.map(r => r.lugar).filter(Boolean)).size;
+  const lista = activos();
+  const totalRegistros  = lista.length;
+  const totalIndividuos = lista.reduce((s,r)=> s + (r.individuos||0), 0);
+  const especiesUnicas  = new Set(lista.map(r => r.especieComun)).size;
+  const lugaresUsados   = new Set(lista.map(r => r.lugar).filter(Boolean)).size;
 
   document.getElementById('stats-generales').innerHTML = `
     <div class="stat"><b>${totalRegistros}</b><span>Avistamientos</span></div>
@@ -517,10 +1278,14 @@ function renderResumen(){
     <div class="stat"><b>${lugaresUsados}</b><span>Lugares con registros</span></div>
   `;
 
-  pintarRanking('ranking-especies', contarPor(avistamientos, r => r.especieComun || 'Sin especificar'));
-  pintarRanking('ranking-lugares', contarPor(avistamientos, r => r.lugar || 'Sin especificar'));
-  pintarRanking('ranking-estrato', contarPor(avistamientos, r => r.estratificacion || 'Sin especificar'));
+  pintarRanking('ranking-especies', contarPor(lista, r => r.especieComun || 'Sin especificar'));
+  pintarRanking('ranking-lugares',  contarPor(lista, r => r.lugar || 'Sin especificar'));
+  pintarRanking('ranking-estrato',  contarPor(lista, r => r.estratificacion || 'Sin especificar'));
+
+  pintarSelectLugares(document.getElementById('acum-lugar'), true);
+  renderAcumulacion();
 }
+document.getElementById('acum-lugar').addEventListener('change', renderAcumulacion);
 
 function contarPor(lista, fn){
   const mapa = {};
@@ -534,7 +1299,7 @@ function pintarRanking(idContenedor, entradas){
   const max = entradas[0][1];
   cont.innerHTML = entradas.slice(0,15).map(([nombre, valor]) => `
     <div class="barra-fila">
-      <div class="nom" title="${nombre}">${nombre}</div>
+      <div class="nom" title="${esc(nombre)}">${esc(nombre)}</div>
       <div class="barra-fondo"><div class="barra-rel" style="width:${(valor/max*100).toFixed(0)}%"></div></div>
       <div>${valor}</div>
     </div>
@@ -546,8 +1311,8 @@ function renderConfigLugares(){
   const cont = document.getElementById('lista-lugares-config');
   cont.innerHTML = lugares.map((l,i) => `
     <div class="config-item">
-      <input type="text" data-idx="${i}" value="${l.replace(/"/g,'&quot;')}">
-      <button type="button" class="cerrar" data-del="${i}" title="Quitar lugar">✕</button>
+      <input type="text" data-idx="${i}" value="${esc(l)}">
+      <button type="button" class="cerrar" data-del="${i}" title="Quitar lugar">&#10005;</button>
     </div>
   `).join('');
 }
@@ -568,21 +1333,110 @@ document.getElementById('btn-guardar-lugares').addEventListener('click', ()=>{
   const nuevos = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
   if(!nuevos.length){ alert('Debe haber al menos 1 lugar.'); return; }
   lugares = nuevos.slice(0,10);
-  guardarLugares(lugares);
+  if(!persistirLugares()){
+    alert('No se pudieron guardar los lugares: ' + (ultimoErrorAlmacen || ''));
+    return;
+  }
   pintarSelectLugares(document.getElementById('lugar-muestreo'), false);
   pintarSelectLugares(document.getElementById('filtro-lugar'), true);
-  alert('Lugares de muestreo guardados.');
+  toast('Lugares de muestreo guardados.');
 });
+
+// ---------- Estado del almacenamiento ----------
+async function renderEstadoAlmacen(){
+  const cont = document.getElementById('estado-almacen');
+  if(!cont) return;
+
+  const pendientes = avistamientos.filter(r => !r.sincronizado).length;
+  const eliminados = avistamientos.filter(r => r.eliminado).length;
+  const conPunto  = activos().filter(r => puntoDe(r.id)).length;
+  const sinPunto   = activos().length - conPunto;
+  const bytes = (()=>{ try{ return new Blob([(localStorage.getItem(LS_KEY)||'') + (localStorage.getItem(LS_PUNTOS)||'')]).size; }catch(e){ return 0; } })();
+  const m = meta();
+
+  let persistente = 'no consultable en este navegador';
+  try{
+    if(navigator.storage && navigator.storage.persisted){
+      persistente = (await navigator.storage.persisted())
+        ? 'sí — el navegador no debería liberarlos por su cuenta'
+        : 'no — el navegador podría liberarlos si le falta espacio. Instala la app en la pantalla de inicio para mejorarlo.';
+    }
+  }catch(e){}
+
+  const sw = ('serviceWorker' in navigator)
+    ? (navigator.serviceWorker.controller ? 'activo — la app abre sin conexión' : 'registrándose…')
+    : (location.protocol === 'file:'
+        ? 'no aplica (archivo local): la app abre siempre'
+        : 'no disponible sobre http:// — para abrir la app hace falta el servidor encendido (los datos ya guardados no se pierden)');
+
+  cont.innerHTML = `
+    <table class="estado">
+      <tr><th>Avistamientos guardados</th><td><b>${activos().length}</b>${eliminados ? ` <span class="hint">(+${eliminados} marcados como eliminados, conservados para sincronizar)</span>` : ''}</td></tr>
+      <tr><th>Puntos GPS</th><td><b>${conPunto}</b> con coordenada${sinPunto ? ` · <span class="pill warn">${sinPunto} sin coordenada</span>` : ''}
+        <div class="hint">Se guardan en una capa aparte, lista para subir a PostGIS. Los que falten se pueden tomar desde el Historial.</div></td></tr>
+      <tr><th>GPS ahora</th><td>${esc(estadoGps === 'ok' && ultimaPosicion ? `señal lista (±${ultimaPosicion.precisionM ?? '?'} m)` : (textoGps(estadoGps) || 'inactivo'))}</td></tr>
+      <tr><th>Sin sincronizar</th><td>${pendientes} <span class="hint">— todavía no hay servidor: todo vive solo en este dispositivo</span></td></tr>
+      <tr><th>Último guardado</th><td>${m.ultimoGuardado ? esc(new Date(m.ultimoGuardado).toLocaleString()) : '—'}</td></tr>
+      <tr><th>Espacio usado</th><td>${(bytes/1024).toFixed(1)} KB <span class="hint">de ~5 MB disponibles</span></td></tr>
+      <tr><th>Copia interna (IndexedDB)</th><td>${idbDisponible === true ? '<span class="pill ok">activa</span>' : idbDisponible === false ? '<span class="pill warn">no disponible</span>' : 'comprobando…'}</td></tr>
+      <tr><th>Almacenamiento persistente</th><td>${esc(persistente)}</td></tr>
+      <tr><th>Modo sin conexión</th><td>${esc(sw)}</td></tr>
+      <tr><th>Origen de los datos</th><td><code>${esc(location.origin === 'null' ? 'archivo local (file://)' : location.origin)}</code>
+        <div class="hint">Los datos pertenecen a esta dirección exacta. Si el PC que sirve la app cambia de IP, los avistamientos <b>no</b> aparecerán en la nueva dirección: fija la IP del PC o mueve los datos con el respaldo JSON.</div></td></tr>
+      <tr><th>ID de este dispositivo</th><td><code>${esc(idDispositivo().slice(0,8))}</code></td></tr>
+    </table>
+    <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn ghost small" id="btn-verificar-almacen">Verificar y reparar almacenamiento</button>
+      ${eliminados ? `<button class="btn ghost small" id="btn-purgar">Purgar ${eliminados} eliminado(s) definitivamente</button>` : ''}
+    </div>
+  `;
+
+  document.getElementById('btn-verificar-almacen').addEventListener('click', async ()=>{
+    const espejo = await idbLeer('avistamientos');
+    const antes = avistamientos.length;
+    avistamientos = fusionar(avistamientos, Array.isArray(espejo) ? espejo : []);
+    const espejoP = await idbLeer('puntos');
+    puntos = fusionarPuntos(puntos, Array.isArray(espejoP) ? espejoP : []);
+    const ok = persistirAvistamientos() && persistirPuntos();
+    await idbEscribir('avistamientos', avistamientos);
+    await idbEscribir('puntos', puntos);
+    await idbEscribir('lugares', lugares);
+    renderEstadoAlmacen(); renderHistorial();
+    alert(ok
+      ? `Almacenamiento verificado.\n\nRegistros en total: ${avistamientos.length}` +
+        (avistamientos.length > antes
+          ? `\nRecuperados de la copia interna: ${avistamientos.length - antes}`
+          : '\nLas dos copias coinciden.')
+      : 'La escritura sigue fallando: ' + (ultimoErrorAlmacen || ''));
+  });
+
+  const btnPurgar = document.getElementById('btn-purgar');
+  if(btnPurgar) btnPurgar.addEventListener('click', ()=>{
+    if(!confirm(`Se eliminarán definitivamente ${eliminados} registro(s). Esto no se puede deshacer.`)) return;
+    const vivos = new Set(avistamientos.filter(r => !r.eliminado).map(r => r.id));
+    avistamientos = avistamientos.filter(r => !r.eliminado);
+    puntos = puntos.filter(p => vivos.has(p.avistamientoId));
+    persistirAvistamientos(); persistirPuntos();
+    renderEstadoAlmacen();
+  });
+}
 
 // ---------- Respaldo JSON ----------
 document.getElementById('btn-exportar-json').addEventListener('click', ()=>{
-  const respaldo = {avistamientos, lugares, exportado: new Date().toISOString()};
-  const blob = new Blob([JSON.stringify(respaldo, null, 2)], {type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `respaldo_avistamientos_${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
+  const respaldo = {
+    formato: 'avistamiento-aves',
+    version: 2,
+    app: APP_VERSION,
+    exportado: ahora(),
+    dispositivo: idDispositivo(),
+    lugares,
+    avistamientos,
+    puntos
+  };
+  descargar(new Blob([JSON.stringify(respaldo, null, 2)], {type:'application/json'}),
+            `respaldo_avistamientos_${new Date().toISOString().slice(0,10)}.json`);
 });
+
 document.getElementById('input-importar').addEventListener('change', (ev)=>{
   const file = ev.target.files[0];
   if(!file) return;
@@ -591,15 +1445,26 @@ document.getElementById('input-importar').addEventListener('change', (ev)=>{
     try{
       const datos = JSON.parse(reader.result);
       if(!Array.isArray(datos.avistamientos)) throw new Error('formato inválido');
-      if(!confirm(`Se importarán ${datos.avistamientos.length} avistamientos. Esto reemplaza los datos actuales de este navegador. ¿Continuar?`)) return;
-      avistamientos = datos.avistamientos;
-      guardarAvistamientos(avistamientos);
-      if(Array.isArray(datos.lugares) && datos.lugares.length){
-        lugares = datos.lugares;
-        guardarLugares(lugares);
+      const antes = avistamientos.length;
+      const unido = fusionar(avistamientos, datos.avistamientos);
+      const nuevos = unido.length - antes;
+      if(!confirm(`El archivo trae ${datos.avistamientos.length} avistamiento(s).\n\n` +
+                  `Se AÑADEN a los de este dispositivo (no se borra nada): ${nuevos} nuevo(s).\n\n¿Continuar?`)) return;
+      avistamientos = unido;
+      if(!persistirAvistamientos()){
+        alert('No se pudo guardar la importación: ' + (ultimoErrorAlmacen || ''));
+        return;
       }
-      alert('Respaldo importado correctamente.');
-      renderHistorial(); renderResumen(); renderConfigLugares();
+      if(Array.isArray(datos.puntos) && datos.puntos.length){
+        puntos = fusionarPuntos(puntos, datos.puntos);
+        persistirPuntos();
+      }
+      if(Array.isArray(datos.lugares) && datos.lugares.length){
+        lugares = Array.from(new Set([...lugares, ...datos.lugares])).slice(0,10);
+        persistirLugares();
+      }
+      alert(`Respaldo importado. Se añadieron ${nuevos} avistamiento(s).`);
+      renderHistorial(); renderResumen(); renderConfigLugares(); renderEstadoAlmacen();
       pintarSelectLugares(document.getElementById('lugar-muestreo'), false);
       pintarSelectLugares(document.getElementById('filtro-lugar'), true);
     }catch(e){
@@ -609,19 +1474,33 @@ document.getElementById('input-importar').addEventListener('change', (ev)=>{
   reader.readAsText(file);
   ev.target.value = '';
 });
+
 document.getElementById('btn-borrar-todo').addEventListener('click', ()=>{
-  if(!confirm('Esto borrará TODOS los avistamientos guardados en este navegador. ¿Continuar?')) return;
-  if(!confirm('¿Seguro? Esta acción no se puede deshacer.')) return;
+  if(!avistamientos.length){ alert('No hay datos que borrar.'); return; }
+  if(!confirm(`Esto borrará los ${avistamientos.length} avistamiento(s) guardados en este navegador. ¿Continuar?`)) return;
+  if(!confirm('¿Seguro? No se puede deshacer. Si aún no exportaste el respaldo JSON, cancela y expórtalo primero.')) return;
   avistamientos = [];
-  guardarAvistamientos(avistamientos);
-  renderHistorial(); renderResumen();
+  puntos = [];
+  persistirAvistamientos(); persistirPuntos();
+  limpiarBorrador();
+  renderHistorial(); renderResumen(); renderEstadoAlmacen();
 });
 
+/* ---------- Service worker ----------
+   Lo sirve el sitio en la raíz (/sw.js) y cubre las dos apps de campo, no solo
+   esta. Guarda la app en el dispositivo para que abra sin internet. */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('/sw.js')
+      .then(()=> setTimeout(renderEstadoAlmacen, 1500))
+      .catch(()=>{});
+  });
+}
+
+// ---------- Arranque ----------
 renderHistorial();
-</script>
-<script>
-  // Guarda la app en el dispositivo para poder usarla sin internet.
-  if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
+arrancarAlmacen();
+iniciarGps();      // la pestaña Registrar es la que abre por defecto
 </script>
 </body>
 </html>
