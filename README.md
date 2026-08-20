@@ -17,12 +17,44 @@ Dos herramientas de campo en un solo sitio, con una pantalla de inicio para eleg
 index.html          pantalla de inicio (elegir app)
 manifest.json       PWA del inicio
 sw.js               service worker: guarda todo para uso sin internet
+actualizar.js       avisa con un botón cuando hay una versión nueva
 icons/              íconos del inicio
 aves/               app de avistamiento de aves (index.html + manifest + íconos)
 insumos/            app de monitoreo de siembra (index.html + manifest + íconos)
 ```
 
 No hay build ni dependencias: es HTML, CSS y JavaScript planos. Editar es abrir el `index.html` que corresponda.
+
+## Publicar un cambio
+
+1. Editar el archivo.
+2. **Subir el número de `VERSION` en `sw.js`.** Es el único paso fácil de olvidar y el
+   que hace que el cambio llegue: sin eso, los celulares siguen abriendo la copia
+   guardada. La versión anterior se borra sola al activarse la nueva.
+3. Empujar a `main`. Vercel despliega solo.
+
+### Qué ve la gente
+
+Nadie tiene que desinstalar ni reinstalar nada, y nunca hizo falta.
+
+Al abrir la app, el navegador detecta el `sw.js` nuevo y lo instala en segundo plano,
+pero **no lo activa por su cuenta**: se queda esperando. `actualizar.js` lo detecta y
+muestra una barra arriba — *"Hay una versión nueva de la app"* — con **Actualizar** y
+**Ahora no**. Solo al tocar Actualizar la app se recarga con la versión nueva.
+
+Que decida la persona es a propósito: recargar sola a mitad de un registro en campo
+sería peor que mostrar la versión vieja un rato más. Si eligen "Ahora no", la
+actualización entra igual la próxima vez que abran la app.
+
+Detalles que ya están resueltos:
+
+- La app de aves guarda el borrador del formulario antes de recargar, así que lo que
+  se estuviera escribiendo no se pierde (`window.aeAntesDeActualizar`).
+- Si la app queda abierta días —una PWA instalada puede— busca actualizaciones al
+  volver del segundo plano, al recuperar la conexión y cada 30 minutos.
+- La primera instalación no muestra la barra: no hay nada que actualizar.
+- Si hay dos pestañas abiertas y una actualiza, la otra no se recarga por sorpresa:
+  ofrece un botón **Recargar**.
 
 ## Despliegue (Vercel)
 

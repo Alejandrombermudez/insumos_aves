@@ -173,12 +173,15 @@
   Amazonía Emprende — Restauramos la biodiversidad de los ecosistemas con especies forestales nativas.
 </footer>
 
+<script src="/actualizar.js"></script>
 <script>
   const estado = document.getElementById('estado');
   const estadoTxt = document.getElementById('estado-txt');
 
   if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('/sw.js').then(() => {
+    // actualizar.js ya registro el service worker y ademas avisa cuando hay
+    // version nueva; aqui solo se lee el resultado.
+    window.aeSW.then(() => {
       if(navigator.serviceWorker.controller){
         estado.classList.add('listo');
         estadoTxt.textContent = 'Listas para usar sin internet.';

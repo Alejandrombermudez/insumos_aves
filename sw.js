@@ -2,7 +2,7 @@
    Guarda las dos apps en el dispositivo para que funcionen sin internet.
    Sube el número de VERSION cuando cambies algo, para que se reemplace lo guardado. */
 
-const VERSION = 'ae-campo-v2';
+const VERSION = 'ae-campo-v3';
 const CACHE = `${VERSION}`;
 
 /* Todo lo que hace falta para que las apps abran sin conexión. */
@@ -10,6 +10,7 @@ const PRECARGA = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/actualizar.js',
   '/icons/icon-180.png',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
@@ -32,8 +33,15 @@ self.addEventListener('install', (ev) => {
     const cache = await caches.open(CACHE);
     // Uno por uno: si algún recurso falla, el resto igual queda guardado.
     await Promise.allSettled(PRECARGA.map((url) => cache.add(url)));
-    self.skipWaiting();
   })());
+});
+
+/* A propósito NO se llama skipWaiting() al instalar: la versión nueva se queda
+   esperando y actualizar.js le avisa a la persona con un botón. Quien está en
+   campo decide cuándo, en vez de que la app se recargue sola a mitad de un
+   registro. Este mensaje es el que manda ese botón. */
+self.addEventListener('message', (ev) => {
+  if (ev.data && ev.data.tipo === 'ACTUALIZAR_YA') self.skipWaiting();
 });
 
 self.addEventListener('activate', (ev) => {

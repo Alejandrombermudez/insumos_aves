@@ -1159,9 +1159,8 @@ addInsumoRow();
 poblarSelects();
 aplicarSesion();   // muestra el login si no hay sesión; si la hay, aplica rol + render
 </script>
-<script>
-  // Guarda la app en el dispositivo para poder usarla sin internet.
-  if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
-</script>
+<!-- Guarda la app en el dispositivo para usarla sin internet, y avisa con un
+     boton cuando hay una version nueva. -->
+<script src="/actualizar.js"></script>
 </body>
 </html>
