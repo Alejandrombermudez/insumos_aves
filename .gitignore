@@ -9,3 +9,7 @@ desktop.ini
 # Editores
 .vscode/
 .idea/
+
+# Documentacion interna del ecosistema (Supabase, migraciones propuestas).
+# Este repo es publico: no se sube. Ver docs-internos/LEEME.md
+docs-internos/
