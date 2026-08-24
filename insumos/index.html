@@ -107,7 +107,27 @@
   .ins-row{display:grid;grid-template-columns:1.6fr .8fr .9fr 1fr auto;gap:8px;margin-bottom:8px;align-items:end}
   .ins-row .mini-lbl{display:none}
   .nuc-count{font-family:'Josefin Sans';font-weight:700;color:var(--bosque)}
+  /* selector de nucleos por botones + apoyo cartografico */
+  .nuc-picker{border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:10px}
+  .nuc-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .nuc-bar .nuc-info{font-size:12px;color:#6b6459;margin-right:auto}
+  .nuc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px;max-height:236px;overflow-y:auto;padding:2px}
+  .nuc-btn{min-height:44px;padding:4px 2px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--negro);
+    font-family:'Josefin Sans';font-weight:700;font-size:16px;line-height:1;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .nuc-btn:active{transform:scale(.94)}
+  .nuc-btn.on{background:var(--bosque);border-color:var(--bosque);color:#fff}
+  .nuc-map{margin-top:10px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#eee8dc}
+  .nuc-map svg{display:block;width:100%;height:auto}
+  .nuc-map .area{fill:var(--salvia);fill-opacity:.30;stroke:#8fa093;stroke-width:1}
+  .nuc-map .nuc{fill:#fff;fill-opacity:.85;stroke:var(--bosque);stroke-width:1.2;cursor:pointer}
+  .nuc-map .nuc.on{fill:var(--ambar);fill-opacity:1;stroke:var(--ambar-d);stroke-width:2}
+  .nuc-map .yo{fill:var(--pizarra);stroke:#fff;stroke-width:2}
+  .nuc-map .cap{font-family:'Josefin Sans';font-size:11px;fill:#6b6459}
+  .nuc-msg{padding:12px 14px;font-size:12px;color:#6b6459;text-align:center;line-height:1.5}
   @media (max-width:640px){
+    /* tope para que la grilla y el mapa quepan en la misma pantalla del celular */
+    .nuc-grid{grid-template-columns:repeat(auto-fill,minmax(52px,1fr));max-height:328px}
+    .nuc-btn{min-height:48px;font-size:17px}
     header{padding:12px 14px} .brand b{font-size:16px}
     nav{top:62px} main{padding:14px 12px 60px}
     .view-head h2{font-size:21px}
@@ -207,7 +227,7 @@
       <form id="formLote" onsubmit="guardarLote(event)">
         <input type="hidden" id="loteId">
         <div class="grid-form">
-          <div><label>Lote <span class="req">*</span></label><input id="l_numero" required placeholder="Ej. 0"></div>
+          <div><label>Lote <span class="req">*</span></label><input id="l_numero" required placeholder="Ej. 0" oninput="sugerirNucleosSIG()"></div>
           <div><label>Nombre / referencia</label><input id="l_nombre" placeholder="Ej. Piloto Biodiversa"></div>
           <div><label>Núcleos del lote (rango o lista)</label><input id="l_nucleos" placeholder="Ej. 1-25" oninput="previewNucleosLote()"></div>
         </div>
@@ -233,12 +253,13 @@
         <input type="hidden" id="regId">
         <div class="grid-form">
           <div><label>Fecha</label><input id="r_fecha" type="date"></div>
-          <div><label>Lote <span class="req">*</span></label><select id="r_lote" required></select></div>
+          <div><label>Lote <span class="req">*</span></label><select id="r_lote" required onchange="renderNucPicker()"></select></div>
           <div><label>Actividad <span class="req">*</span></label><select id="r_act" required></select></div>
         </div>
         <div style="margin-top:12px">
-          <label>Núcleos trabajados <span class="req">*</span> <span class="hint">— rango o lista, ej. <b>1-6, 8, 9, 10, 13, 22, 25</b></span></label>
-          <input id="r_nucleos" placeholder="1-6, 8, 9, 10, 13, 22, 25" oninput="calcReg()">
+          <label>Núcleos trabajados <span class="req">*</span> <span class="hint">— toca los que se trabajaron</span></label>
+          <div id="r_nucPicker"></div>
+          <input type="hidden" id="r_nucleos">
           <div class="hint" id="r_nucCount" style="margin-top:5px"></div>
         </div>
 
@@ -437,6 +458,24 @@ function cargar(){
 }
 function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
 
+/* ============================================================ Cartografia (SIG) ============================================================ */
+/* Cartografia de los nucleos y las areas de restauracion (La Guajira, Vda. Las Delicias).
+   Origen: shapefiles del SIG, WGS84. Coordenadas en grados decimales, radio en metros.
+   Se dibuja con SVG puro: no usa mapas de internet, funciona sin senal. */
+const SIG = {
+  areas: [
+    {n:"Árboles nodriza", ha:5.57, p:[[-75.654866,1.424425],[-75.654138,1.424188],[-75.65376,1.423558],[-75.653644,1.423324],[-75.653353,1.423256],[-75.653381,1.422996],[-75.653581,1.422724],[-75.654488,1.422013],[-75.654523,1.422068],[-75.654618,1.422072],[-75.654727,1.422028],[-75.65521,1.421873],[-75.655257,1.42198],[-75.655542,1.422142],[-75.655703,1.422136],[-75.655858,1.422405],[-75.655582,1.422682],[-75.655625,1.422823],[-75.655718,1.422976],[-75.655804,1.423551],[-75.655765,1.423629],[-75.655661,1.424496],[-75.655189,1.424561],[-75.654866,1.424425]]},
+    {n:"Nucleación enriquecimiento 1", ha:4.6, p:[[-75.656986,1.421645],[-75.657423,1.421556],[-75.657877,1.421205],[-75.657918,1.421361],[-75.658048,1.421706],[-75.658052,1.421865],[-75.657917,1.422077],[-75.657883,1.422335],[-75.657675,1.422539],[-75.657626,1.422674],[-75.657657,1.423243],[-75.657361,1.423692],[-75.656155,1.424523],[-75.656071,1.424401],[-75.656166,1.424128],[-75.655944,1.423019],[-75.656138,1.422527],[-75.656986,1.421645]]},
+    {n:"Nucleación enriquecimiento 2", ha:1.81, p:[[-75.658773,1.420345],[-75.6598,1.421458],[-75.659719,1.421655],[-75.659149,1.421898],[-75.658943,1.421901],[-75.658744,1.421866],[-75.658586,1.421876],[-75.658599,1.421711],[-75.658321,1.421288],[-75.658161,1.420863],[-75.658773,1.420345]]},
+    {n:"Nucleación enriquecimiento 3", ha:3.06, p:[[-75.660683,1.423846],[-75.660746,1.423916],[-75.65916,1.424258],[-75.65912,1.423881],[-75.659205,1.423507],[-75.658978,1.422058],[-75.65914,1.422013],[-75.659247,1.421971],[-75.659359,1.421953],[-75.659683,1.421782],[-75.659738,1.421789],[-75.660178,1.4227],[-75.660241,1.42299],[-75.660225,1.423369],[-75.660683,1.423846]]},
+    {n:"Nucleación enriquecimiento 4", ha:2.42, p:[[-75.664889,1.422837],[-75.665103,1.423562],[-75.665004,1.423661],[-75.664829,1.424148],[-75.664809,1.423543],[-75.663925,1.422543],[-75.664032,1.422059],[-75.663946,1.421706],[-75.663856,1.421373],[-75.664126,1.421231],[-75.664486,1.421237],[-75.664873,1.421652],[-75.665047,1.422039],[-75.66518,1.422379],[-75.664889,1.422837]]},
+  ],
+  lotes: {
+    "0": {radio:9.0, nucleos:[[1,-75.654383,1.422105],[2,-75.65429,1.42223],[3,-75.654216,1.42236],[4,-75.653876,1.422655],[5,-75.654032,1.422754],[6,-75.654148,1.422557],[7,-75.654385,1.422363],[8,-75.654529,1.422262],[9,-75.654613,1.422583],[10,-75.654619,1.422416],[11,-75.653994,1.422527],[12,-75.654916,1.423679],[13,-75.654775,1.422164],[14,-75.654946,1.422267],[15,-75.655129,1.422046],[16,-75.655068,1.422344],[17,-75.654951,1.423182],[18,-75.654834,1.423321],[19,-75.654927,1.422497],[20,-75.654654,1.423259],[21,-75.654246,1.422845],[22,-75.655141,1.423428],[23,-75.654791,1.423544],[24,-75.653932,1.422887],[25,-75.654834,1.423846],[26,-75.654755,1.424059],[27,-75.654675,1.423917],[28,-75.654617,1.423478],[29,-75.654469,1.423412],[30,-75.654376,1.422981],[31,-75.654687,1.422298],[32,-75.654436,1.422545],[33,-75.654808,1.422421],[34,-75.654846,1.422616],[35,-75.65473,1.422767],[36,-75.654919,1.422955],[37,-75.655099,1.422927],[38,-75.654775,1.422947],[39,-75.655053,1.423588],[40,-75.654987,1.423994],[41,-75.654988,1.424167],[42,-75.654523,1.423835],[43,-75.654652,1.423676],[44,-75.654503,1.423674],[45,-75.654449,1.422825],[46,-75.655535,1.42295],[47,-75.65551,1.42333],[48,-75.655272,1.423208],[49,-75.655284,1.423442],[50,-75.655232,1.423834],[51,-75.655323,1.423626],[52,-75.65551,1.423661],[53,-75.65566,1.423583],[54,-75.655292,1.422749],[55,-75.655509,1.422291],[56,-75.655335,1.422403],[57,-75.659739,1.423307],[58,-75.654112,1.423037],[59,-75.653753,1.423002],[60,-75.653957,1.42316],[61,-75.653932,1.423391],[62,-75.654095,1.423483],[63,-75.654246,1.423247],[64,-75.654337,1.423516],[65,-75.654261,1.423709],[66,-75.654371,1.423839],[67,-75.654302,1.423948],[68,-75.654423,1.424113],[69,-75.654817,1.424307],[70,-75.655394,1.424296],[71,-75.655325,1.424088],[72,-75.655549,1.424042],[73,-75.65554,1.423893]]},
+    "2": {radio:6.0, nucleos:[[1,-75.658787,1.421822],[2,-75.658937,1.421879],[3,-75.659159,1.421796],[4,-75.659326,1.421784],[5,-75.659395,1.421657],[6,-75.659644,1.421592],[7,-75.659708,1.421489],[8,-75.65955,1.421527],[9,-75.659507,1.4214],[11,-75.659348,1.421297],[12,-75.659404,1.421389],[13,-75.659455,1.421561],[14,-75.659455,1.421561],[15,-75.659237,1.42126],[16,-75.6593,1.421452],[17,-75.659201,1.42116],[18,-75.659104,1.421282],[19,-75.659098,1.420984],[20,-75.659066,1.420818],[21,-75.658841,1.420753],[22,-75.658779,1.420856],[23,-75.658699,1.420801],[24,-75.658831,1.420927],[25,-75.658714,1.421016],[26,-75.658551,1.420863],[27,-75.658715,1.420647],[28,-75.658588,1.421383],[29,-75.658361,1.421053],[30,-75.65884,1.421267],[110,-75.659486,1.421277]]},
+  }
+};
+
 /* ============================================================ Utilidades ============================================================ */
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 const $ = id => document.getElementById(id);
@@ -523,10 +562,184 @@ function readInsumos(){
   })).filter(i=>i.insumo && i.cantidad>0);
 }
 
+/* ============================================================ Núcleos: botones + mapa ============================================================
+   La persona no escribe números: toca los núcleos del lote. El valor sigue viviendo en el input
+   oculto #r_nucleos, así que guardar, editar, exportar y los reportes no cambian.
+   Si algo del mapa o de la lista falla, se cae al campo de texto de siempre y el registro se guarda igual. */
+let nucSel = new Set();
+let _proy = null;   // proyección del mapa dibujado, para ubicar el GPS
+
+const sigDeLote = l => { try{ return l ? (SIG.lotes[String(l.numero).trim()] || null) : null; }catch(e){ return null; } };
+
+/* Núcleos de referencia del lote: manda lo que definió la persona; si está vacío, la cartografía. */
+function rosterLote(loteId){
+  const l=loteById(loteId); if(!l) return [];
+  const escritos=parseNucleos(l.nucleos);
+  if(escritos.length) return escritos;
+  const sig=sigDeLote(l);
+  return sig ? sig.nucleos.map(n=>n[0]) : [];
+}
+const rosterActual = () => rosterLote($('r_lote').value);
+
+function nucAplicar(){ $('r_nucleos').value=compressRanges([...nucSel]); pintarNucSel(); calcReg(); }
+function pintarNucSel(){
+  document.querySelectorAll('#r_nucPicker .nuc-btn').forEach(b=>{
+    const on=nucSel.has(+b.dataset.n);
+    b.classList.toggle('on',on); b.setAttribute('aria-pressed',on?'true':'false');
+  });
+  document.querySelectorAll('#r_nucPicker circle.nuc').forEach(c=>c.classList.toggle('on',nucSel.has(+c.dataset.n)));
+}
+function nucToggle(n){ n=+n; nucSel.has(n)?nucSel.delete(n):nucSel.add(n); nucAplicar(); }
+function nucTodos(){ rosterActual().forEach(n=>nucSel.add(n)); nucAplicar(); }
+function nucNinguno(){ nucSel.clear(); nucAplicar(); }
+function nucInvertir(){ const antes=new Set(nucSel); nucSel=new Set(rosterActual().filter(n=>!antes.has(n))); nucAplicar(); }
+function nucDesdeTexto(v){ nucSel=new Set(parseNucleos(v)); $('r_nucleos').value=compressRanges([...nucSel]); calcReg(); }
+
+function renderNucPicker(){
+  const cont=$('r_nucPicker'); if(!cont) return;
+  try{
+    const loteId=$('r_lote').value;
+    if(!loteId){
+      cont.innerHTML=`<div class="banner" style="margin:0">Selecciona el lote y aquí aparecen sus núcleos.</div>`;
+      nucSel.clear(); $('r_nucleos').value=''; calcReg(); return;
+    }
+    const roster=rosterLote(loteId);
+    if(roster.length) [...nucSel].forEach(n=>{ if(!roster.includes(n)) nucSel.delete(n); });
+    if(!roster.length){ cont.innerHTML=nucFallbackHTML(); $('r_nucleos').value=compressRanges([...nucSel]); calcReg(); return; }
+    const l=loteById(loteId);
+    cont.innerHTML=`<div class="nuc-picker">
+      <div class="nuc-bar">
+        <span class="nuc-info">Lote ${esc(l.numero)} · ${roster.length} núcleo(s)</span>
+        <button type="button" class="btn btn-soft btn-sm" onclick="nucTodos()">Todos</button>
+        <button type="button" class="btn btn-soft btn-sm" onclick="nucInvertir()">Invertir</button>
+        <button type="button" class="btn btn-soft btn-sm" onclick="nucNinguno()">Limpiar</button>
+      </div>
+      <div class="nuc-grid">${roster.map(n=>`<button type="button" class="nuc-btn" data-n="${n}" aria-pressed="false" onclick="nucToggle(${n})">${n}</button>`).join('')}</div>
+      ${mapaSeguro(l,roster)}
+    </div>`;
+    $('r_nucleos').value=compressRanges([...nucSel]);
+    pintarNucSel(); calcReg();
+  }catch(e){
+    cont.innerHTML=nucFallbackHTML('No se pudo armar la lista de núcleos. Escríbelos aquí: el registro se guarda igual.');
+    $('r_nucleos').value=compressRanges([...nucSel]); calcReg();
+  }
+}
+function nucFallbackHTML(msg){
+  return `<div class="nuc-picker">
+    <div class="banner" style="margin:0 0 8px">${esc(msg||'Este lote todavía no tiene núcleos definidos. Escríbelos aquí, o defínelos en «Lotes y núcleos» para trabajarlos con botones.')}</div>
+    <input id="r_nucTexto" placeholder="1-6, 8, 9, 10" value="${esc(compressRanges([...nucSel]))}" oninput="nucDesdeTexto(this.value)">
+  </div>`;
+}
+
+/* El mapa es apoyo: si se cae, se cae solo él y los botones siguen sirviendo. */
+function mapaSeguro(l,roster){
+  try{ return mapaNucleos(l,roster); }
+  catch(e){ return mapaMsg('No se pudo dibujar el mapa.<br>Los núcleos se registran igual con los botones de arriba.'); }
+}
+
+/* Mapa dibujado con SVG puro: sin mapas de internet, sin librerías. Funciona sin señal. */
+function mapaNucleos(l,roster){
+  _proy=null;
+  try{
+    const sig=sigDeLote(l);
+    if(!sig||!sig.nucleos.length) return mapaMsg('Este lote todavía no tiene cartografía cargada.<br>Los núcleos se registran igual con los botones de arriba.');
+    const W=720, PAD=16;
+    const enc=encuadre(sig.nucleos);
+    let {minX,maxX,minY,maxY}=enc;
+    const latRef=(minY+maxY)/2, M_LAT=110540, M_LON=111320*Math.cos(latRef*Math.PI/180);
+    const mg=sig.radio+15;
+    minX-=mg/M_LON; maxX+=mg/M_LON; minY-=mg/M_LAT; maxY+=mg/M_LAT;
+    const wM=(maxX-minX)*M_LON, hM=(maxY-minY)*M_LAT;
+    if(!(wM>0&&hM>0&&isFinite(wM)&&isFinite(hM))) throw new Error('extensión inválida');
+    const H_MAX=560, H_MIN=190;
+    let s=(W-2*PAD)/wM;                                       // píxeles por metro
+    if(hM*s+2*PAD>H_MAX) s=(H_MAX-2*PAD)/hM;                  // si queda muy alto, se aleja en vez de recortar
+    const H=Math.max(H_MIN,Math.round(hM*s)+2*PAD);
+    const offX=(W-wM*s)/2, offY=(H-hM*s)/2;
+    const px=x=>offX+(x-minX)*M_LON*s, py=y=>H-(offY+(y-minY)*M_LAT*s);
+    _proy={px,py,W,H};
+    const rPx=Math.max(7,sig.radio*s);
+    const poly=p=>p.map(([x,y])=>`${px(x).toFixed(1)},${py(y).toFixed(1)}`).join(' ');
+    const areas=(SIG.areas||[]).map(a=>`<polygon class="area" points="${poly(a.p)}"><title>${esc(a.n)} — ${fmtNum(a.ha)} ha</title></polygon>`).join('');
+    const circs=sig.nucleos.map(([n,x,y])=>{
+      const dentro=!roster.length||roster.includes(n);
+      return `<circle class="nuc" data-n="${n}" cx="${px(x).toFixed(1)}" cy="${py(y).toFixed(1)}" r="${rPx.toFixed(1)}"`
+        + (dentro?` onclick="nucToggle(${n})"`:` opacity=".3"`)
+        + `><title>Núcleo ${n}</title></circle>`;
+    }).join('');
+    return `<div class="nuc-map">
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Mapa de los núcleos del lote ${esc(l.numero)}">
+        <g>${areas}</g><g>${circs}</g><g id="r_gps"></g>${escalaSVG(s,W,H,PAD)}
+      </svg>
+      <div class="nuc-msg" style="text-align:left;display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:8px 12px">
+        <span>Blanco = sin marcar · Ámbar = trabajado · Verde claro = área de restauración</span>
+        <button type="button" class="btn btn-soft btn-sm" style="margin-left:auto" onclick="ubicarme()">📍 ¿Dónde estoy?</button>
+        ${avisosSIG(enc,sig)}
+      </div>
+    </div>`;
+  }catch(e){
+    return mapaMsg('No se pudo dibujar el mapa.<br>Los núcleos se registran igual con los botones de arriba.');
+  }
+}
+const mapaMsg = html => `<div class="nuc-map"><div class="nuc-msg">${html}</div></div>`;
+
+/* Encuadre del mapa. Un núcleo mal digitalizado, muy lejos del resto, apretaba a todos los demás
+   contra un borde. Se encuadra sobre el grueso de los núcleos; el que quede afuera se sigue
+   dibujando y se avisa cuál es. Los datos del SIG no se tocan. */
+function encuadre(nucs){
+  const med=a=>{ const b=[...a].sort((x,y)=>x-y), m=b.length>>1; return b.length%2?b[m]:(b[m-1]+b[m])/2; };
+  const cx=med(nucs.map(n=>n[1])), cy=med(nucs.map(n=>n[2]));
+  const M_LAT=110540, M_LON=111320*Math.cos(cy*Math.PI/180);
+  const d=nucs.map(([n,x,y])=>Math.hypot((x-cx)*M_LON,(y-cy)*M_LAT));
+  const corte=Math.max(80,3*med(d));
+  let dentro=nucs.filter((n,i)=>d[i]<=corte);
+  if(dentro.length<nucs.length*0.8) dentro=nucs;   // si la dispersión es real, no se recorta nada
+  const fuera=nucs.filter(n=>dentro.indexOf(n)<0).map(n=>n[0]);
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  dentro.forEach(([n,x,y])=>{ if(x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y; });
+  return {minX,maxX,minY,maxY,fuera};
+}
+
+/* Avisa de lo que se ve raro en la cartografía, sin estorbar el registro. */
+function avisosSIG(enc,sig){
+  const av=[];
+  if(enc.fuera.length) av.push(`el núcleo ${enc.fuera.join(', ')} queda lejos del resto y no cabe en el encuadre`);
+  const vistos={}, rep=[];
+  sig.nucleos.forEach(([n,x,y])=>{ const k=x+'|'+y; if(vistos[k]!==undefined&&rep.indexOf(vistos[k]+' y '+n)<0) rep.push(vistos[k]+' y '+n); else vistos[k]=n; });
+  if(rep.length) av.push(`${rep.join('; ')} están en el mismo punto`);
+  return av.length?`<span style="width:100%;color:var(--marron)">⚠ Revisar en el SIG: ${esc(av.join(' · '))}.</span>`:'';
+}
+
+function escalaSVG(s,W,H,PAD){
+  const opciones=[10,20,25,50,100,200,250,500];
+  const m=opciones.find(v=>v*s>=70)||500, w=m*s, x=W-PAD-w, y=H-12;
+  return `<g><line x1="${x.toFixed(1)}" y1="${y}" x2="${(x+w).toFixed(1)}" y2="${y}" stroke="#6b6459" stroke-width="2"/>
+    <line x1="${x.toFixed(1)}" y1="${y-4}" x2="${x.toFixed(1)}" y2="${y+4}" stroke="#6b6459" stroke-width="2"/>
+    <line x1="${(x+w).toFixed(1)}" y1="${y-4}" x2="${(x+w).toFixed(1)}" y2="${y+4}" stroke="#6b6459" stroke-width="2"/>
+    <text class="cap" x="${(x+w/2).toFixed(1)}" y="${y-7}" text-anchor="middle">${m} m</text></g>`;
+}
+
+/* GPS: si no hay permiso o no engancha, avisa y no estorba. Nunca bloquea el guardado. */
+function ubicarme(){
+  const g=$('r_gps'); if(!g) return;
+  if(!navigator.geolocation){ alert('Este dispositivo no comparte la ubicación. Marca los núcleos a mano.'); return; }
+  navigator.geolocation.getCurrentPosition(pos=>{
+    try{
+      if(!_proy){ alert('El mapa no está dibujado.'); return; }
+      const x=_proy.px(pos.coords.longitude), y=_proy.py(pos.coords.latitude);
+      if(!isFinite(x)||!isFinite(y)||x<0||y<0||x>_proy.W||y>_proy.H){
+        g.innerHTML=''; alert('Estás fuera del área dibujada de este lote.'); return;
+      }
+      g.innerHTML=`<circle class="yo" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7"><title>Tu posición</title></circle>`;
+    }catch(e){ /* el mapa es apoyo: si falla, no pasa nada */ }
+  }, ()=>alert('No se pudo obtener la ubicación. Marca los núcleos a mano: el registro se guarda igual.'),
+  {enableHighAccuracy:true,timeout:8000,maximumAge:30000});
+}
+
 /* ============================================================ Cálculos en vivo ============================================================ */
 function calcReg(){
   const nuc=parseNucleos($('r_nucleos').value); const n=nuc.length;
-  $('r_nucCount').innerHTML = n?`<span class="nuc-count">${n} núcleo(s):</span> ${esc(compressRanges(nuc))}`:'<span style="color:var(--bad)">Escribe al menos un núcleo</span>';
+  $('r_nucCount').innerHTML = n?`<span class="nuc-count">${n} núcleo(s):</span> ${esc(compressRanges(nuc))}`:'<span style="color:var(--bad)">Toca al menos un núcleo</span>';
   const jor=num($('r_jornales').value), val=num($('r_valor').value);
   const mo=jor*val, ins=readInsumos();
   const costoIns=ins.reduce((s,i)=>s+i.cantidad*i.costoUnitario,0);
@@ -539,12 +752,27 @@ function calcReg(){
 }
 
 /* ============================================================ CRUD Lotes ============================================================ */
-function previewNucleosLote(){ const n=parseNucleos($('l_nucleos').value); $('l_preview').innerHTML = n.length?`${n.length} núcleo(s): ${esc(compressRanges(n))}`:''; }
+function previewNucleosLote(){
+  const n=parseNucleos($('l_nucleos').value);
+  const sig=SIG.lotes[$('l_numero').value.trim()];
+  let txt = n.length?`${n.length} núcleo(s): ${esc(compressRanges(n))}`:'';
+  if(sig) txt += `${txt?' · ':''}El SIG tiene ${sig.nucleos.length} núcleos cartografiados para este lote.`;
+  $('l_preview').innerHTML = txt;
+}
+/* Si el lote está en la cartografía y aún no tiene núcleos escritos, se llenan solos. */
+function sugerirNucleosSIG(){
+  try{
+    const sig=SIG.lotes[$('l_numero').value.trim()];
+    if(sig && !$('l_nucleos').value.trim()) $('l_nucleos').value=compressRanges(sig.nucleos.map(n=>n[0]));
+  }catch(e){}
+  previewNucleosLote();
+}
 function guardarLote(e){
   e.preventDefault();
   const id=$('loteId').value;
   const data={numero:$('l_numero').value.trim(), nombre:$('l_nombre').value.trim(), nucleos:$('l_nucleos').value.trim(), notas:$('l_notas').value.trim()};
   if(!data.numero) return;
+  if(!data.nucleos){ const sig=SIG.lotes[data.numero]; if(sig) data.nucleos=compressRanges(sig.nucleos.map(n=>n[0])); }
   if(id) Object.assign(loteById(id),data); else state.lotes.push({id:uid(),...data});
   save(); resetForm('lote'); poblarSelects(); render();
 }
@@ -576,7 +804,8 @@ function guardarRegistro(e){
 function editarRegistro(id){
   const r=state.registros.find(x=>x.id===id); if(!r) return;
   $('regId').value=r.id; $('r_fecha').value=r.fecha||''; poblarSelects();
-  $('r_lote').value=r.loteId; $('r_act').value=r.actividad; $('r_nucleos').value=compressRanges(r.nucleos||[]);
+  $('r_lote').value=r.loteId; $('r_act').value=r.actividad;
+  nucSel=new Set(r.nucleos||[]); renderNucPicker();
   $('r_personas').value=r.personas||''; $('r_jornales').value=r.jornales||''; $('r_valor').value=r.valorJornal||state.config.valorJornal; $('r_notas').value=r.notas||'';
   $('r_insumos').innerHTML=''; (r.insumos||[]).forEach(addInsumoRow); if(!(r.insumos||[]).length) addInsumoRow();
   $('r_cancel').style.display=''; calcReg(); irA('registros');
@@ -585,7 +814,7 @@ function borrarRegistro(id){ if(!confirm('¿Borrar este registro?'))return; stat
 
 function resetForm(which){
   if(which==='lote'){ $('formLote').reset(); $('loteId').value=''; $('l_cancel').style.display='none'; $('l_preview').innerHTML=''; }
-  if(which==='reg'){ $('formReg').reset(); $('regId').value=''; $('r_cancel').style.display='none'; $('r_valor').value=state.config.valorJornal; $('r_insumos').innerHTML=''; addInsumoRow(); $('r_derived').innerHTML=''; $('r_nucCount').innerHTML=''; }
+  if(which==='reg'){ $('formReg').reset(); $('regId').value=''; $('r_cancel').style.display='none'; $('r_valor').value=state.config.valorJornal; $('r_insumos').innerHTML=''; addInsumoRow(); $('r_derived').innerHTML=''; $('r_nucCount').innerHTML=''; nucSel.clear(); renderNucPicker(); }
   if(which==='bodega'){ $('formBodega').reset(); $('b_id').value=''; $('b_cancel').style.display='none'; }
 }
 function irA(view){ document.querySelector(`.tab[data-view="${view}"]`).click(); setTimeout(()=>window.scrollTo({top:70,behavior:'smooth'}),60); }
@@ -925,7 +1154,7 @@ function renderUsuariosConfig(){
 }
 
 /* ============================================================ Render ============================================================ */
-function render(){ poblarSelects(); renderResumen(); renderLotes(); renderRegistros(); renderInventario(); renderPorAceptar(); renderBodegasConfig(); renderUsuariosConfig(); renderConfig(); }
+function render(){ poblarSelects(); renderNucPicker(); renderResumen(); renderLotes(); renderRegistros(); renderInventario(); renderPorAceptar(); renderBodegasConfig(); renderUsuariosConfig(); renderConfig(); }
 
 function renderLotes(){
   const cont=$('listaLotes');
@@ -1092,8 +1321,12 @@ function emptyBox(icon,t,x){ return `<div class="empty"><div class="big">${icon}
 /* ============================================================ Datos ============================================================ */
 function cargarEjemplo(){
   if((state.lotes.length||state.registros.length||state.movimientos.length) && !confirm('Esto reemplazará los datos actuales por un ejemplo. ¿Continuar?')) return;
-  const l0=uid();
-  state.lotes=[{id:l0,numero:'0',nombre:'Piloto Biodiversa',nucleos:'1-25',notas:'Frente piloto en ejecución.'}];
+  const l0=uid(), l2=uid();
+  const nucSIG = num => { const s=SIG.lotes[num]; return s?compressRanges(s.nucleos.map(n=>n[0])):''; };
+  state.lotes=[
+    {id:l0,numero:'0',nombre:'Piloto Biodiversa',nucleos:nucSIG('0')||'1-73',notas:'Frente piloto en ejecución. La Guajira, Vda. Las Delicias.'},
+    {id:l2,numero:'2',nombre:'La Guajira',nucleos:nucSIG('2')||'1-9, 11-30',notas:'Núcleos cartografiados por el SIG (buffer de 6 m).'},
+  ];
   const vj=state.config.valorJornal;
   const R=(fecha,act,nuc,personas,jornales,insumos,notas='')=>({id:uid(),fecha,loteId:l0,actividad:act,grupo:ACT_GRUPO[act]||'',nucleos:parseNucleos(nuc),insumos:insumos||[],personas,jornales,valorJornal:vj,notas});
   state.registros=[
@@ -1157,6 +1390,7 @@ function borrarTodo(){
 $('r_valor').value=state.config.valorJornal;
 addInsumoRow();
 poblarSelects();
+renderNucPicker();
 aplicarSesion();   // muestra el login si no hay sesión; si la hay, aplica rol + render
 </script>
 <!-- Guarda la app en el dispositivo para usarla sin internet, y avisa con un
