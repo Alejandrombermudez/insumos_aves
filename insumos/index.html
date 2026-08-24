@@ -310,6 +310,7 @@
       <h2>Monitoreo de siembra</h2>
       <p>Estado de lo sembrado, árbol por árbol. Un registro por especie observada en un núcleo. La foto y la altura exacta son opcionales.</p>
     </div>
+    <div id="m_aviso"></div>
     <div class="card">
       <form id="formMon" onsubmit="guardarMonitoreo(event)">
         <input type="hidden" id="monId">
@@ -620,6 +621,27 @@ const SIG = {
   }
 };
 
+/* Los lotes que ya tienen cartografía del SIG son lotes reales, no un ejemplo: si la app está
+   vacía se crean solos, para que desde la primera vez haya algo que seleccionar y nadie tenga
+   que teclear 73 núcleos a mano. El id es fijo, así que sembrar dos veces no duplica nada.
+   Va aquí y no en cargar(): el estado se carga antes de que exista la constante SIG. */
+function lotesDesdeSIG(){
+  const nombres = {'0':'Piloto Biodiversa'};
+  return Object.keys(SIG.lotes).sort((a,b)=>(+a)-(+b)).map(num=>({
+    id:'l_sig_'+num, numero:num, nombre:nombres[num]||'',
+    nucleos: compressRanges(SIG.lotes[num].nucleos.map(n=>n[0])),
+    notas:'Núcleos cargados de la cartografía del SIG.'
+  }));
+}
+function sembrarLotesSIG(){
+  try{
+    if(state.lotes.length) return false;
+    state.lotes = lotesDesdeSIG();
+    save();
+    return true;
+  }catch(e){ console.warn('No se pudieron sembrar los lotes del SIG', e); return false; }
+}
+
 /* ============================================================ Utilidades ============================================================ */
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 const $ = id => document.getElementById(id);
@@ -744,7 +766,9 @@ function renderNucPicker(){
   try{
     const loteId=$('r_lote').value;
     if(!loteId){
-      cont.innerHTML=`<div class="banner" style="margin:0">Selecciona el lote y aquí aparecen sus núcleos.</div>`;
+      cont.innerHTML=`<div class="banner" style="margin:0">${state.lotes.length
+        ? 'Selecciona el lote y aquí aparecen sus núcleos.'
+        : 'Todavía no hay lotes. Créalos en la pestaña <b>Lotes y núcleos</b>.'}</div>`;
       nucSel.clear(); $('r_nucleos').value=''; calcReg(); return;
     }
     const roster=rosterLote(loteId);
@@ -984,6 +1008,8 @@ function onEspecieMon(){
 /* ---- Lote / núcleo ---- */
 function poblarMonSelects(){
   if(!$('m_lote')) return;
+  $('m_aviso').innerHTML = state.lotes.length ? '' :
+    `<div class="banner">Todavía no hay lotes, por eso los desplegables están vacíos. Créalos en la pestaña <b>Lotes y núcleos</b>: si el número del lote está en la cartografía del SIG, sus núcleos se llenan solos.</div>`;
   const sel=$('m_lote').value;
   $('m_lote').innerHTML = `<option value="">— Selecciona —</option>`+state.lotes.map(l=>`<option value="${l.id}" ${l.id===sel?'selected':''}>Lote ${esc(l.numero)}${l.nombre?' · '+esc(l.nombre):''}</option>`).join('');
   $('filtroMonLote').innerHTML = loteOpts($('filtroMonLote').value,true);
@@ -995,7 +1021,7 @@ function onLoteMon(mantener){
   const roster=rosterLote(id);
   $('m_nucleo').innerHTML = roster.length
     ? `<option value="">— Selecciona —</option>`+roster.map(n=>`<option value="${n}" ${String(n)===sel?'selected':''}>Núcleo ${n}</option>`).join('')
-    : `<option value="">— El lote no tiene núcleos definidos —</option>`;
+    : `<option value="">${id?'— Este lote no tiene núcleos definidos —':'— Elige primero el lote —'}</option>`;
   renderMapaMon();
 }
 function monNucleo(n){ $('m_nucleo').value=String(n); renderMapaMon(); }
@@ -1759,12 +1785,9 @@ function emptyBox(icon,t,x){ return `<div class="empty"><div class="big">${icon}
 /* ============================================================ Datos ============================================================ */
 function cargarEjemplo(){
   if((state.lotes.length||state.registros.length||state.movimientos.length) && !confirm('Esto reemplazará los datos actuales por un ejemplo. ¿Continuar?')) return;
-  const l0=uid(), l2=uid();
-  const nucSIG = num => { const s=SIG.lotes[num]; return s?compressRanges(s.nucleos.map(n=>n[0])):''; };
-  state.lotes=[
-    {id:l0,numero:'0',nombre:'Piloto Biodiversa',nucleos:nucSIG('0')||'1-73',notas:'Frente piloto en ejecución.'},
-    {id:l2,numero:'2',nombre:'Nucleación enriquecimiento',nucleos:nucSIG('2')||'1-9, 11-30',notas:'Núcleos cartografiados por el SIG (buffer de 6 m).'},
-  ];
+  state.lotes = lotesDesdeSIG();
+  const l0 = (state.lotes.find(l=>l.numero==='0')||{}).id;
+  const l2 = (state.lotes.find(l=>l.numero==='2')||{}).id;
   const vj=state.config.valorJornal;
   const R=(fecha,act,nuc,personas,jornales,insumos,notas='')=>({id:uid(),fecha,loteId:l0,actividad:act,grupo:ACT_GRUPO[act]||'',nucleos:parseNucleos(nuc),insumos:insumos||[],personas,jornales,valorJornal:vj,notas});
   state.registros=[
@@ -1842,6 +1865,7 @@ function borrarTodo(){
 
 /* ============================================================ Init ============================================================ */
 $('r_valor').value=state.config.valorJornal;
+sembrarLotesSIG();   // si no hay lotes, entran los del SIG antes de pintar nada
 addInsumoRow();
 poblarSelects();
 renderNucPicker();
