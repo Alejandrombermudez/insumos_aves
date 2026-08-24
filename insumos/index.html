@@ -124,7 +124,26 @@
   .nuc-map .yo{fill:var(--pizarra);stroke:#fff;stroke-width:2}
   .nuc-map .cap{font-family:'Josefin Sans';font-size:11px;fill:#6b6459}
   .nuc-msg{padding:12px 14px;font-size:12px;color:#6b6459;text-align:center;line-height:1.5}
+  /* monitoreo: opciones rapidas y foto */
+  .opt-row{display:flex;gap:8px;flex-wrap:wrap}
+  .opt{flex:1 1 92px;min-height:46px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;
+    color:var(--negro);font-family:'Poppins';font-size:14px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .opt:active{transform:scale(.96)}
+  .opt.on{background:var(--bosque);border-color:var(--bosque);color:#fff}
+  .opt.on.bueno{background:var(--ok);border-color:var(--ok)}
+  .opt.on.regular{background:var(--ambar);border-color:var(--ambar-d);color:var(--bosque)}
+  .opt.on.muerto{background:var(--bad);border-color:var(--bad)}
+  .foto-box{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+  .foto-prev{width:120px;height:120px;border-radius:10px;border:1px solid var(--line);object-fit:cover;background:var(--hueso-2)}
+  .foto-mini{width:64px;height:64px;border-radius:8px;border:1px solid var(--line);object-fit:cover;cursor:pointer}
+  .est-pill{display:inline-block;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600}
+  .est-bueno{background:#e2efe4;border:1px solid #bfd9c5;color:var(--ok)}
+  .est-regular{background:#f7ecd6;border:1px solid #ecd6a8;color:var(--marron)}
+  .est-muerto{background:#f4dedb;border:1px solid #e0bcb4;color:var(--bad)}
+  .opt-row.tres .opt{flex:1 1 0;min-width:0}
   @media (max-width:640px){
+    .opt{flex:1 1 calc(50% - 8px);min-height:50px}
+    .opt-row.tres .opt{flex:1 1 0;padding:8px 4px;font-size:13px}
     /* tope para que la grilla y el mapa quepan en la misma pantalla del celular */
     .nuc-grid{grid-template-columns:repeat(auto-fill,minmax(52px,1fr));max-height:328px}
     .nuc-btn{min-height:48px;font-size:17px}
@@ -188,6 +207,7 @@
   <button class="tab active" data-view="resumen">Resumen</button>
   <button class="tab" data-view="lotes">Lotes y núcleos</button>
   <button class="tab" data-view="registros">Registro de campo</button>
+  <button class="tab" data-view="monitoreo">Monitoreo</button>
   <button class="tab" data-view="inventario">Inventario</button>
   <button class="tab" data-view="config">Configuración</button>
 </nav>
@@ -282,6 +302,78 @@
     </div>
     <div class="filter-bar"><label for="filtroRegLote">Ver de:</label><select id="filtroRegLote" onchange="renderRegistros()"></select></div>
     <div class="list" id="listaRegistros"></div>
+  </section>
+
+  <!-- ============ MONITOREO ============ -->
+  <section class="view" id="view-monitoreo">
+    <div class="view-head">
+      <h2>Monitoreo de siembra</h2>
+      <p>Estado de lo sembrado, árbol por árbol. Un registro por especie observada en un núcleo. La foto y la altura exacta son opcionales.</p>
+    </div>
+    <div class="card">
+      <form id="formMon" onsubmit="guardarMonitoreo(event)">
+        <input type="hidden" id="monId">
+        <div class="grid-form">
+          <div><label>Fecha</label><input id="m_fecha" type="date"></div>
+          <div><label>Lote <span class="req">*</span></label><select id="m_lote" required onchange="onLoteMon()"></select></div>
+          <div><label>Núcleo <span class="req">*</span></label><select id="m_nucleo" required onchange="renderMapaMon()"></select></div>
+        </div>
+
+        <div style="margin-top:12px">
+          <label>Especie <span class="req">*</span> <span class="hint">— las del vivero; si no está, elige «Otra»</span></label>
+          <select id="m_especie" required onchange="onEspecieMon()"></select>
+          <div id="m_otraBox" style="display:none;margin-top:8px">
+            <input id="m_otra" placeholder="Nombre de la especie (común o científico)" oninput="calcMon()">
+            <div class="hint" style="margin-top:4px">Queda guardada para las próximas veces.</div>
+          </div>
+          <div class="hint" id="m_espInfo" style="margin-top:5px"></div>
+        </div>
+
+        <div style="margin-top:14px">
+          <label>Estado <span class="req">*</span></label>
+          <div class="opt-row tres" id="m_estado"></div>
+        </div>
+
+        <div style="margin-top:14px">
+          <label>Rango de altura</label>
+          <div class="opt-row" id="m_rango"></div>
+        </div>
+
+        <div class="grid-form" style="margin-top:12px">
+          <div><label>Altura exacta (cm) <span class="hint">— opcional</span></label><input id="m_altura" type="number" step="1" min="0" placeholder="Ej. 85" oninput="onAlturaMon()"></div>
+        </div>
+
+        <div style="margin-top:12px">
+          <label>Foto <span class="hint">— opcional</span></label>
+          <div class="foto-box">
+            <input type="file" id="m_fotoFile" accept="image/*" capture="environment" style="flex:1;min-width:200px" onchange="cargarFotoMon(event)">
+            <div id="m_fotoPrev"></div>
+          </div>
+          <div class="hint" id="m_fotoMsg" style="margin-top:5px"></div>
+        </div>
+
+        <div><label style="margin-top:12px">Observaciones</label><textarea id="m_obs" placeholder="Lo que se vio: rebrote, plaga, competencia, daño por ganado…"></textarea></div>
+        <div id="m_mapa" style="margin-top:12px"></div>
+        <div class="derived" id="m_derived" style="margin-top:12px"></div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Guardar monitoreo</button>
+          <button type="button" class="btn btn-soft" id="m_cancel" style="display:none" onclick="resetForm('mon')">Cancelar edición</button>
+          <button type="button" class="btn btn-soft btn-sm" onclick="exportarMonitoreoCSV()">⬇ Exportar CSV</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="stats" id="statsMon"></div>
+    <div class="filter-bar">
+      <label for="filtroMonLote">Ver de:</label><select id="filtroMonLote" onchange="renderMonitoreos()"></select>
+      <label for="filtroMonEstado">Estado:</label><select id="filtroMonEstado" onchange="renderMonitoreos()">
+        <option value="__all">Todos</option><option value="Bueno">Bueno</option><option value="Regular">Regular</option><option value="Muerto">Muerto</option>
+      </select>
+    </div>
+    <div class="section-title">Supervivencia por especie</div>
+    <div id="tablaMonEspecies"></div>
+    <div class="section-title">Registros de monitoreo</div>
+    <div class="list" id="listaMonitoreos"></div>
   </section>
 
   <!-- ============ INVENTARIO ============ -->
@@ -432,31 +524,83 @@ const BODEGAS_SEED = [
 const USUARIOS_SEED = [
   {id:'u_katys', nombre:'Katys Blanquicet', rol:'bodega', bodegaIds:['b_recepcion']},
   {id:'u_rodrigo', nombre:'Rodrigo Zuleta', rol:'campo', bodegaIds:['b_piloto','b_leyarbol']},
-  {id:'u_monica', nombre:'Mónica Sarmiento', rol:'bodega', bodegaIds:['b_vivero']},
+  {id:'u_monica', nombre:'Mónica Sarmiento', rol:'monitoreo', bodegaIds:['b_vivero']},
   {id:'u_coord', nombre:'Coordinación', rol:'coordinador', bodegaIds:[]},
 ];
 const ROLES = {
-  coordinador:{label:'Coordinación', tabs:['resumen','lotes','registros','inventario','config']},
+  coordinador:{label:'Coordinación', tabs:['resumen','lotes','registros','monitoreo','inventario','config']},
   campo:{label:'Campo', tabs:['resumen','lotes','registros','inventario']},
+  // Mónica: lo mismo que campo, más el monitoreo de lo sembrado. Sigue con su bodega del vivero.
+  monitoreo:{label:'Monitoreo', tabs:['resumen','lotes','registros','monitoreo','inventario']},
   bodega:{label:'Bodega', tabs:['inventario']},
 };
 const SES_KEY = 'ae_monitoreo_sesion_v1';
 let sesionId = localStorage.getItem(SES_KEY) || '';
 
-function estadoInicial(){ return {lotes:[], registros:[], bodegas:BODEGAS_SEED.map(x=>({...x})), movimientos:[], usuarios:USUARIOS_SEED.map(x=>({...x,bodegaIds:[...x.bodegaIds]})), config:{valorJornal:60000, catalogoInsumos:INSUMOS_SEED.map(x=>({...x}))}}; }
+function estadoInicial(){ return {lotes:[], registros:[], monitoreos:[], bodegas:BODEGAS_SEED.map(x=>({...x})), movimientos:[], usuarios:USUARIOS_SEED.map(x=>({...x,bodegaIds:[...x.bodegaIds]})), config:{valorJornal:60000, catalogoInsumos:INSUMOS_SEED.map(x=>({...x})), especiesExtra:[]}}; }
 let state = cargar();
 function cargar(){
   try{
     const raw = localStorage.getItem(LS_KEY); if(!raw) return estadoInicial();
     const s = JSON.parse(raw);
-    s.lotes ||= []; s.registros ||= [];
+    s.lotes ||= []; s.registros ||= []; s.monitoreos ||= [];
     s.bodegas ||= BODEGAS_SEED.map(x=>({...x})); s.movimientos ||= [];
     s.usuarios ||= USUARIOS_SEED.map(x=>({...x,bodegaIds:[...x.bodegaIds]}));
     s.config ||= {}; s.config.valorJornal ??= 60000; s.config.catalogoInsumos ||= INSUMOS_SEED.map(x=>({...x}));
+    s.config.especiesExtra ||= [];
+    // Mónica pasó de solo bodega a monitoreo; se corrige en sesiones ya guardadas.
+    const mo=(s.usuarios||[]).find(u=>u.id==='u_monica'); if(mo && mo.rol==='bodega') mo.rol='monitoreo';
     return s;
   }catch(e){ console.warn('Estado corrupto, reinicio', e); return estadoInicial(); }
 }
-function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+/* Si el navegador se queda sin espacio, hay que avisarlo: callar aquí es perder trabajo de campo. */
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); return true; }
+  catch(e){
+    console.error('No se pudo guardar', e);
+    alert('No se pudo guardar: el navegador se quedó sin espacio.\n\nHaz un Respaldo (⬇) ahora mismo y borra monitoreos viejos o sus fotos para liberar espacio.');
+    return false;
+  }
+}
+
+/* ============================================================ Especies del vivero ============================================================ */
+/* Especies que se trabajan en el vivero.
+   Origen: Intranet-AE/docs/sql/seed_catalogo_especies.sql (el mismo seed que va a
+   catalogo.especies en Supabase), filtrando en_vivero = true. 31 de 148.
+   El slug es el identificador estable: no cambiar, es el que amarra con la base. */
+const ESPECIES_VIVERO = [
+  {slug:"cedrelinga_cateniformis", comun:"Achapo / Achapo blanco / Achapo colorao", cientifico:"Cedrelinga cateniformis", familia:"FABACEAE", semilla:"RECALCITRANTE"},
+  {slug:"bixa_orellana", comun:"Achiote", cientifico:"Bixa orellana", familia:"", semilla:"ORTODOXA"},
+  {slug:"vitex_orinocensis", comun:"Ahumado micho/Flor morada", cientifico:"Vitex orinocensis", familia:"", semilla:"no encontré en literatura"},
+  {slug:"couroupita_guianensis", comun:"Bala de cañón", cientifico:"Couroupita guianensis", familia:"", semilla:"RECALCITRANTE"},
+  {slug:"ochroma_pyramidale", comun:"Balso / Balso colorado", cientifico:"Ochroma pyramidale", familia:"MALVACEAE", semilla:"ORTODOXA"},
+  {slug:"minquartia_guianensis", comun:"Barbasco / Ahumado real / Ahumado negro", cientifico:"Minquartia guianensis", familia:"OLACACEAE", semilla:""},
+  {slug:"guarea_guidonia", comun:"Bilibil / Fono blanco", cientifico:"Guarea guidonia", familia:"MELIACEAE", semilla:"RECALCITRANTE"},
+  {slug:"pouteria_procera", comun:"Caimitillo / Caimo", cientifico:"Pouteria procera", familia:"SAPOTACEAE", semilla:""},
+  {slug:"anacardium_excelsum", comun:"Caracoli", cientifico:"Anacardium excelsum", familia:"ANACARDIACEAE", semilla:""},
+  {slug:"zygia_longifolia", comun:"Carbón", cientifico:"Zygia longifolia", familia:"", semilla:""},
+  {slug:"hevea_brasiliensis", comun:"Caucho", cientifico:"Hevea brasiliensis", familia:"", semilla:"RECALCITRANTE"},
+  {slug:"tapirira_guianensis", comun:"Cedrillo, fresno / Cedrillo / Sangretoro", cientifico:"Tapirira guianensis", familia:"ANACARDIACEAE", semilla:"RECALCITRANTE"},
+  {slug:"cedrela_odorata", comun:"Cedro rojo / Cedro rosado / Cedro blanco", cientifico:"Cedrela odorata", familia:"MELIACEAE", semilla:"ORTODOXA"},
+  {slug:"ormosia_santaremnensis", comun:"Chocho / Flor morado", cientifico:"Ormosia santaremnensis", familia:"FABACEAE", semilla:"ORTODOXA"},
+  {slug:"theobroma_grandiflorum", comun:"copoazú", cientifico:"Theobroma grandiflorum", familia:"", semilla:"RECALCITRANTE"},
+  {slug:"terminalia_congesta", comun:"Fono negro / Fono colorao / Fono", cientifico:"Terminalia congesta", familia:"COMBRETACEAE", semilla:"no encontré en literatura"},
+  {slug:"inga_edulis", comun:"Guama rabo de mico", cientifico:"Inga edulis", familia:"", semilla:"RECALCITRANTE"},
+  {slug:"parkia_velutina", comun:"Guarango blanco / Guarango", cientifico:"Parkia velutina", familia:"FABACEAE", semilla:""},
+  {slug:"ocotea_oblonga", comun:"Indio viejo", cientifico:"Ocotea oblonga", familia:"LAURACEAE", semilla:"RECALCITRANTE"},
+  {slug:"sin_identificar", comun:"Manguillo", cientifico:"Sin identificar", familia:"", semilla:""},
+  {slug:"didymopanax_morototoni", comun:"Mano de oso / Mano de Oso", cientifico:"Didymopanax morototoni", familia:"ARALIACEAE", semilla:""},
+  {slug:"cordia_alliodora", comun:"Nogal caqueteño / Nogal Caqueteño", cientifico:"Cordia alliodora", familia:"BORAGINACEAE", semilla:"ORTODOXA"},
+  {slug:"enterolobium_schomburgkii", comun:"Orejero", cientifico:"Enterolobium schomburgkii", familia:"", semilla:"ORTODOXA"},
+  {slug:"piptocoma_discolor", comun:"Palonegro", cientifico:"Piptocoma discolor", familia:"ASTERACEAE", semilla:""},
+  {slug:"jacaranda_copaia", comun:"Pavito / Maduraplatano / Canalete", cientifico:"Jacaranda copaia", familia:"BIGNONIACEAE", semilla:""},
+  {slug:"apeiba_membranacea", comun:"Peine mono", cientifico:"Apeiba membranacea", familia:"", semilla:"ORTODOXA"},
+  {slug:"clarisia_racemosa", comun:"Pelacara / Granadillo", cientifico:"Clarisia racemosa", familia:"MORACEAE", semilla:"no encontré en literatura"},
+  {slug:"matisia_cordata", comun:"sapote", cientifico:"Matisia cordata", familia:"", semilla:"RECALCITRANTE"},
+  {slug:"aegiphila_integrifolia", comun:"Tabaquillo", cientifico:"Aegiphila integrifolia", familia:"", semilla:""},
+  {slug:"caryodendron_orinocense", comun:"Tacay/castaño", cientifico:"Caryodendron orinocense", familia:"", semilla:"RECALCITRANTE"},
+  {slug:"pourouma_cecropiifolia", comun:"Uva caimarona", cientifico:"Pourouma cecropiifolia", familia:"", semilla:""},
+];
 
 /* ============================================================ Cartografia (SIG) ============================================================ */
 /* Cartografia de los nucleos y las areas de restauracion (La Guajira, Vda. Las Delicias).
@@ -632,13 +776,14 @@ function nucFallbackHTML(msg){
 }
 
 /* El mapa es apoyo: si se cae, se cae solo él y los botones siguen sirviendo. */
-function mapaSeguro(l,roster){
-  try{ return mapaNucleos(l,roster); }
+function mapaSeguro(l,roster,cfg){
+  try{ return mapaNucleos(l,roster,cfg); }
   catch(e){ return mapaMsg('No se pudo dibujar el mapa.<br>Los núcleos se registran igual con los botones de arriba.'); }
 }
 
 /* Mapa dibujado con SVG puro: sin mapas de internet, sin librerías. Funciona sin señal. */
-function mapaNucleos(l,roster){
+function mapaNucleos(l,roster,cfg){
+  cfg = Object.assign({sel:null, click:'nucToggle', gpsId:'r_gps'}, cfg||{});
   _proy=null;
   try{
     const sig=sigDeLote(l);
@@ -663,17 +808,18 @@ function mapaNucleos(l,roster){
     const areas=(SIG.areas||[]).map(a=>`<polygon class="area" points="${poly(a.p)}"><title>${esc(a.n)} — ${fmtNum(a.ha)} ha</title></polygon>`).join('');
     const circs=sig.nucleos.map(([n,x,y])=>{
       const dentro=!roster.length||roster.includes(n);
-      return `<circle class="nuc" data-n="${n}" cx="${px(x).toFixed(1)}" cy="${py(y).toFixed(1)}" r="${rPx.toFixed(1)}"`
-        + (dentro?` onclick="nucToggle(${n})"`:` opacity=".3"`)
+      const on=cfg.sel && cfg.sel.has(n);
+      return `<circle class="nuc${on?' on':''}" data-n="${n}" cx="${px(x).toFixed(1)}" cy="${py(y).toFixed(1)}" r="${rPx.toFixed(1)}"`
+        + (dentro&&cfg.click?` onclick="${cfg.click}(${n})"`:'') + (dentro?'':` opacity=".3"`)
         + `><title>Núcleo ${n}</title></circle>`;
     }).join('');
     return `<div class="nuc-map">
       <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Mapa de los núcleos del lote ${esc(l.numero)}">
-        <g>${areas}</g><g>${circs}</g><g id="r_gps"></g>${escalaSVG(s,W,H,PAD)}
+        <g>${areas}</g><g>${circs}</g><g id="${cfg.gpsId}"></g>${escalaSVG(s,W,H,PAD)}
       </svg>
       <div class="nuc-msg" style="text-align:left;display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:8px 12px">
-        <span>Blanco = sin marcar · Ámbar = trabajado · Verde claro = área de restauración</span>
-        <button type="button" class="btn btn-soft btn-sm" style="margin-left:auto" onclick="ubicarme()">📍 ¿Dónde estoy?</button>
+        <span>Blanco = sin marcar · Ámbar = ${cfg.click==='nucToggle'?'trabajado':'el que estás monitoreando'} · Verde claro = área de restauración</span>
+        <button type="button" class="btn btn-soft btn-sm" style="margin-left:auto" onclick="ubicarme('${cfg.gpsId}')">📍 ¿Dónde estoy?</button>
         ${avisosSIG(enc,sig)}
       </div>
     </div>`;
@@ -720,8 +866,8 @@ function escalaSVG(s,W,H,PAD){
 }
 
 /* GPS: si no hay permiso o no engancha, avisa y no estorba. Nunca bloquea el guardado. */
-function ubicarme(){
-  const g=$('r_gps'); if(!g) return;
+function ubicarme(gpsId){
+  const g=$(gpsId||'r_gps'); if(!g) return;
   if(!navigator.geolocation){ alert('Este dispositivo no comparte la ubicación. Marca los núcleos a mano.'); return; }
   navigator.geolocation.getCurrentPosition(pos=>{
     try{
@@ -734,6 +880,288 @@ function ubicarme(){
     }catch(e){ /* el mapa es apoyo: si falla, no pasa nada */ }
   }, ()=>alert('No se pudo obtener la ubicación. Marca los núcleos a mano: el registro se guarda igual.'),
   {enableHighAccuracy:true,timeout:8000,maximumAge:30000});
+}
+
+/* ============================================================ Monitoreo de siembra ============================================================
+   Un registro = una especie observada en un núcleo, en una fecha. Lo llena Mónica en campo.
+   Las fotos NO van a localStorage (se llenaría y se perdería trabajo): se comprimen y se guardan
+   en IndexedDB; en el registro solo queda la marca de que hay foto. Si la foto falla por lo que sea,
+   el monitoreo se guarda igual y se avisa. */
+const ESTADOS = ['Bueno','Regular','Muerto'];
+const RANGOS  = ['0-50','50-100','100-150','+150'];
+let monEstado = '', monRango = '', monFoto = null;   // monFoto: dataURL en memoria mientras se edita
+
+/* ---- Fotos en IndexedDB ---- */
+const FOTO_DB = 'ae_monitoreo_fotos', FOTO_ST = 'fotos';
+function fotoDB(){
+  return new Promise((ok,err)=>{
+    if(!('indexedDB' in window)) return err(new Error('sin IndexedDB'));
+    const r=indexedDB.open(FOTO_DB,1);
+    r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains(FOTO_ST)) r.result.createObjectStore(FOTO_ST); };
+    r.onsuccess=()=>ok(r.result); r.onerror=()=>err(r.error);
+  });
+}
+function fotoOp(modo,fn){
+  return fotoDB().then(db=>new Promise((ok,err)=>{
+    const tx=db.transaction(FOTO_ST,modo), st=tx.objectStore(FOTO_ST), req=fn(st);
+    tx.oncomplete=()=>ok(req&&req.result); tx.onerror=()=>err(tx.error); tx.onabort=()=>err(tx.error);
+  }));
+}
+const guardarFoto = (id,data) => fotoOp('readwrite', st=>st.put(data,id));
+const leerFoto    = id        => fotoOp('readonly',  st=>st.get(id));
+const borrarFoto  = id        => fotoOp('readwrite', st=>st.delete(id)).catch(()=>{});
+
+/* Reduce la foto antes de guardarla: del celular salen de 3-5 MB y no caben. */
+function comprimirFoto(file, maxLado=1024, calidad=0.7){
+  return new Promise((ok,err)=>{
+    const fr=new FileReader();
+    fr.onerror=()=>err(new Error('no se pudo leer el archivo'));
+    fr.onload=()=>{
+      const img=new Image();
+      img.onerror=()=>err(new Error('no se pudo abrir la imagen'));
+      img.onload=()=>{
+        try{
+          const esc=Math.min(1,maxLado/Math.max(img.width,img.height));
+          const c=document.createElement('canvas');
+          c.width=Math.round(img.width*esc); c.height=Math.round(img.height*esc);
+          c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+          ok(c.toDataURL('image/jpeg',calidad));
+        }catch(e){ err(e); }
+      };
+      img.src=fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+function cargarFotoMon(ev){
+  const f=ev.target.files && ev.target.files[0];
+  $('m_fotoMsg').textContent='';
+  if(!f){ monFoto=null; $('m_fotoPrev').innerHTML=''; return; }
+  $('m_fotoMsg').textContent='Preparando la foto…';
+  comprimirFoto(f).then(d=>{
+    monFoto=d;
+    $('m_fotoPrev').innerHTML=`<img class="foto-prev" src="${d}" alt="Foto del monitoreo">
+      <button type="button" class="btn btn-soft btn-sm" onclick="quitarFotoMon()">Quitar foto</button>`;
+    $('m_fotoMsg').textContent=`Lista (${Math.round(d.length/1024)} KB).`;
+  }).catch(()=>{
+    monFoto=null; $('m_fotoPrev').innerHTML='';
+    $('m_fotoMsg').innerHTML='<span style="color:var(--bad)">No se pudo procesar la foto. El monitoreo se puede guardar igual, sin ella.</span>';
+  });
+}
+function quitarFotoMon(){ monFoto=null; $('m_fotoFile').value=''; $('m_fotoPrev').innerHTML=''; $('m_fotoMsg').textContent=''; }
+function verFoto(id){
+  leerFoto(id).then(d=>{
+    if(!d){ alert('Esta foto ya no está guardada en este dispositivo.'); return; }
+    const w=window.open(); if(!w){ alert('El navegador bloqueó la ventana de la foto.'); return; }
+    w.document.write(`<title>Foto del monitoreo</title><body style="margin:0;background:#1e1a18"><img src="${d}" style="max-width:100%;display:block;margin:auto"></body>`);
+  }).catch(()=>alert('No se pudo abrir la foto guardada.'));
+}
+
+/* ---- Especies: las del vivero + las que agregue la persona ---- */
+function especiesDisponibles(){
+  const extra=(state.config.especiesExtra||[]).map(e=>({slug:'x_'+e.toLowerCase().replace(/[^a-z0-9]+/g,'_'), comun:e, cientifico:'', familia:'', semilla:'', extra:true}));
+  return ESPECIES_VIVERO.concat(extra);
+}
+const especiePorSlug = s => especiesDisponibles().find(e=>e.slug===s);
+const especieLabel = e => e.comun ? (e.cientifico?`${e.comun} — ${e.cientifico}`:e.comun) : e.cientifico;
+function especieOpts(sel){
+  const lista=especiesDisponibles();
+  const viv=lista.filter(e=>!e.extra), ext=lista.filter(e=>e.extra);
+  let o=`<option value="">— Selecciona —</option>`;
+  o+=`<optgroup label="Especies del vivero (${viv.length})">`+viv.map(e=>`<option value="${esc(e.slug)}" ${e.slug===sel?'selected':''}>${esc(especieLabel(e))}</option>`).join('')+`</optgroup>`;
+  if(ext.length) o+=`<optgroup label="Agregadas en campo">`+ext.map(e=>`<option value="${esc(e.slug)}" ${e.slug===sel?'selected':''}>${esc(e.comun)}</option>`).join('')+`</optgroup>`;
+  o+=`<option value="__otra" ${sel==='__otra'?'selected':''}>➕ Otra especie…</option>`;
+  return o;
+}
+function onEspecieMon(){
+  const v=$('m_especie').value;
+  $('m_otraBox').style.display = v==='__otra' ? '' : 'none';
+  const e=especiePorSlug(v);
+  $('m_espInfo').textContent = e && e.cientifico ? [e.familia,e.semilla].filter(Boolean).join(' · ') : '';
+  calcMon();
+}
+
+/* ---- Lote / núcleo ---- */
+function poblarMonSelects(){
+  if(!$('m_lote')) return;
+  const sel=$('m_lote').value;
+  $('m_lote').innerHTML = `<option value="">— Selecciona —</option>`+state.lotes.map(l=>`<option value="${l.id}" ${l.id===sel?'selected':''}>Lote ${esc(l.numero)}${l.nombre?' · '+esc(l.nombre):''}</option>`).join('');
+  $('filtroMonLote').innerHTML = loteOpts($('filtroMonLote').value,true);
+  $('m_especie').innerHTML = especieOpts($('m_especie').value);
+  onLoteMon(true);
+}
+function onLoteMon(mantener){
+  const id=$('m_lote').value, sel=mantener?$('m_nucleo').value:'';
+  const roster=rosterLote(id);
+  $('m_nucleo').innerHTML = roster.length
+    ? `<option value="">— Selecciona —</option>`+roster.map(n=>`<option value="${n}" ${String(n)===sel?'selected':''}>Núcleo ${n}</option>`).join('')
+    : `<option value="">— El lote no tiene núcleos definidos —</option>`;
+  renderMapaMon();
+}
+function monNucleo(n){ $('m_nucleo').value=String(n); renderMapaMon(); }
+function renderMapaMon(){
+  const cont=$('m_mapa'); if(!cont) return;
+  try{
+    const l=loteById($('m_lote').value);
+    if(!l){ cont.innerHTML=''; calcMon(); return; }
+    const n=parseInt($('m_nucleo').value,10);
+    cont.innerHTML = mapaSeguro(l, rosterLote(l.id), {sel:new Set(isNaN(n)?[]:[n]), click:'monNucleo', gpsId:'m_gps'});
+  }catch(e){ cont.innerHTML=''; }
+  calcMon();
+}
+
+/* ---- Opciones rápidas: estado y rango de altura ---- */
+function renderOpcionesMon(){
+  const e=$('m_estado'), r=$('m_rango'); if(!e||!r) return;
+  e.innerHTML = ESTADOS.map(v=>`<button type="button" class="opt ${v.toLowerCase()} ${monEstado===v?'on':''}" data-v="${v}" onclick="setEstadoMon('${v}')">${v}</button>`).join('');
+  r.innerHTML = RANGOS.map(v=>`<button type="button" class="opt ${monRango===v?'on':''}" data-v="${v}" onclick="setRangoMon('${v}')">${esc(v)} cm</button>`).join('');
+}
+function setEstadoMon(v){ monEstado = (monEstado===v?'':v); renderOpcionesMon(); calcMon(); }
+function setRangoMon(v){ monRango = (monRango===v?'':v); renderOpcionesMon(); calcMon(); }
+const rangoDeAltura = cm => cm<=0?'' : cm<=50?'0-50' : cm<=100?'50-100' : cm<=150?'100-150' : '+150';
+function onAlturaMon(){
+  const cm=num($('m_altura').value);
+  if(cm>0){ monRango=rangoDeAltura(cm); renderOpcionesMon(); }
+  calcMon();
+}
+function calcMon(){
+  const d=$('m_derived'); if(!d) return;
+  const l=loteById($('m_lote').value), n=$('m_nucleo').value;
+  const v=$('m_especie').value;
+  const esp = v==='__otra' ? ($('m_otra').value.trim()||'—') : (especiePorSlug(v)?especieLabel(especiePorSlug(v)):'—');
+  const falta=[];
+  if(!l) falta.push('lote');
+  if(!n) falta.push('núcleo');
+  if(!v || (v==='__otra' && !$('m_otra').value.trim())) falta.push('especie');
+  if(!monEstado) falta.push('estado');
+  let html = `<span>Especie: <b>${esc(esp)}</b></span>`;
+  if(l&&n) html += `<span>Ubicación: <b>Lote ${esc(l.numero)} · Núcleo ${esc(n)}</b></span>`;
+  if(monEstado) html += `<span>Estado: <b>${esc(monEstado)}</b></span>`;
+  if(monRango) html += `<span>Altura: <b>${esc(monRango)} cm</b></span>`;
+  if(monFoto) html += `<span>Foto: <b>sí</b></span>`;
+  if(falta.length) html += `<span style="width:100%;color:var(--bad)">Falta: ${falta.join(', ')}</span>`;
+  d.innerHTML = html;
+}
+
+/* ---- Guardar / editar / borrar ---- */
+function guardarMonitoreo(e){
+  e.preventDefault();
+  const v=$('m_especie').value;
+  const otra = v==='__otra' ? $('m_otra').value.trim() : '';
+  if(!$('m_lote').value || !$('m_nucleo').value){ alert('Indica el lote y el núcleo.'); return; }
+  if(!v || (v==='__otra' && !otra)){ alert('Indica la especie.'); return; }
+  if(!monEstado){ alert('Indica el estado: bueno, regular o muerto.'); return; }
+
+  let slug=v, nombre='';
+  if(v==='__otra'){
+    if(!(state.config.especiesExtra||[]).some(x=>x.toLowerCase()===otra.toLowerCase())) state.config.especiesExtra.push(otra);
+    slug='x_'+otra.toLowerCase().replace(/[^a-z0-9]+/g,'_'); nombre=otra;
+  }else{
+    const esp=especiePorSlug(v); nombre = esp?especieLabel(esp):'';
+  }
+  const id=$('monId').value || uid();
+  const data={ id, fecha:$('m_fecha').value||hoy(), loteId:$('m_lote').value,
+    nucleo:parseInt($('m_nucleo').value,10), especieSlug:slug, especie:nombre, estado:monEstado,
+    rangoAltura:monRango, altura:num($('m_altura').value)||null, observaciones:$('m_obs').value.trim(),
+    tieneFoto:false, usuario:(usuarioActual()||{}).nombre||'' };
+
+  const anterior=state.monitoreos.find(m=>m.id===id);
+  data.tieneFoto = monFoto ? true : !!(anterior && anterior.tieneFoto);
+
+  const persistir = () => {
+    if(anterior) Object.assign(anterior,data); else state.monitoreos.push(data);
+    if(save()){ resetForm('mon'); render(); }
+  };
+  if(monFoto){
+    guardarFoto(id,monFoto).then(persistir).catch(()=>{
+      data.tieneFoto=false; persistir();
+      alert('El monitoreo quedó guardado, pero la foto no se pudo almacenar en este dispositivo.');
+    });
+  }else persistir();
+}
+function editarMonitoreo(id){
+  const m=state.monitoreos.find(x=>x.id===id); if(!m) return;
+  $('monId').value=m.id; $('m_fecha').value=m.fecha||'';
+  poblarMonSelects();
+  $('m_lote').value=m.loteId||''; onLoteMon(true);
+  $('m_nucleo').value=String(m.nucleo??'');
+  const conocida=especiePorSlug(m.especieSlug);
+  $('m_especie').value = conocida ? m.especieSlug : '__otra';
+  if(!conocida){ $('m_otraBox').style.display=''; $('m_otra').value=m.especie||''; }
+  monEstado=m.estado||''; monRango=m.rangoAltura||''; $('m_altura').value=m.altura||'';
+  $('m_obs').value=m.observaciones||'';
+  monFoto=null; $('m_fotoFile').value=''; $('m_fotoMsg').textContent='';
+  $('m_fotoPrev').innerHTML = m.tieneFoto
+    ? `<button type="button" class="btn btn-soft btn-sm" onclick="verFoto('${m.id}')">Ver foto guardada</button>`
+    : '';
+  renderOpcionesMon(); onEspecieMon(); renderMapaMon();
+  $('m_cancel').style.display=''; irA('monitoreo');
+}
+function borrarMonitoreo(id){
+  if(!confirm('¿Borrar este monitoreo?')) return;
+  state.monitoreos=state.monitoreos.filter(m=>m.id!==id);
+  borrarFoto(id); save(); render();
+}
+
+/* ---- Listado, resumen y CSV ---- */
+function renderMonitoreos(){
+  const cont=$('listaMonitoreos'); if(!cont) return;
+  const fLote=$('filtroMonLote').value, fEst=$('filtroMonEstado').value;
+  let regs=[...state.monitoreos];
+  if(fLote && fLote!=='__all') regs=regs.filter(m=>m.loteId===fLote);
+  if(fEst && fEst!=='__all') regs=regs.filter(m=>m.estado===fEst);
+  regs.sort((a,b)=>String(b.fecha||'').localeCompare(String(a.fecha||'')));
+
+  const total=regs.length, cuenta=e=>regs.filter(m=>m.estado===e).length;
+  const vivos=cuenta('Bueno')+cuenta('Regular');
+  $('statsMon').innerHTML = total
+    ? stat(total,'Observaciones') + stat(cuenta('Bueno'),'Buenos') + stat(cuenta('Regular'),'Regulares',true) +
+      stat(cuenta('Muerto'),'Muertos') + stat(fmtNum(total?vivos/total*100:0)+'%','Supervivencia')
+    : '';
+
+  // supervivencia por especie
+  const porEsp={};
+  regs.forEach(m=>{ const k=m.especie||m.especieSlug; (porEsp[k] ||= {n:0,b:0,r:0,x:0});
+    porEsp[k].n++; if(m.estado==='Bueno')porEsp[k].b++; else if(m.estado==='Regular')porEsp[k].r++; else porEsp[k].x++; });
+  const filas=Object.entries(porEsp).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>
+    `<tr><td>${esc(k)}</td><td class="num">${v.n}</td><td class="num">${v.b}</td><td class="num">${v.r}</td><td class="num">${v.x}</td><td class="num">${fmtNum((v.b+v.r)/v.n*100)}%</td></tr>`).join('');
+  $('tablaMonEspecies').innerHTML = filas
+    ? tabla(['Especie','Observados','Buenos','Regulares','Muertos','Supervivencia'],filas)
+    : emptyBox('🌱','Sin monitoreos','Cuando registres el primero, aquí sale la supervivencia por especie.');
+
+  cont.innerHTML = regs.length ? regs.map(m=>{
+    const l=loteById(m.loteId)||{};
+    return `<div class="item">
+      <div class="item-top">
+        <div style="flex:1">
+          <span class="tag-grupo">Lote ${esc(l.numero||'?')}${l.nombre?' · '+esc(l.nombre):''} · Núcleo ${esc(m.nucleo??'?')}</span>
+          <h3>${esc(m.especie||'—')}</h3>
+        </div>
+        <span class="est-pill est-${esc(String(m.estado||'').toLowerCase())}">${esc(m.estado||'')}</span>
+        <button class="btn-icon" title="Editar" onclick="editarMonitoreo('${m.id}')">✎</button>
+        <button class="btn-danger" title="Borrar" onclick="borrarMonitoreo('${m.id}')">🗑</button>
+      </div>
+      <div class="item-meta">
+        ${m.fecha?`<span>📅 ${fechaFmt(m.fecha)}</span>`:''}
+        ${m.rangoAltura?`<span>Altura: <b>${esc(m.rangoAltura)} cm</b></span>`:''}
+        ${m.altura?`<span>(exacta: <b>${fmtNum(m.altura)} cm</b>)</span>`:''}
+        ${m.usuario?`<span>👤 ${esc(m.usuario)}</span>`:''}
+      </div>
+      ${m.observaciones?`<div class="item-meta"><span>${esc(m.observaciones)}</span></div>`:''}
+      ${m.tieneFoto?`<div class="chips"><button type="button" class="btn btn-soft btn-sm" onclick="verFoto('${m.id}')">📷 Ver foto</button></div>`:''}
+    </div>`;
+  }).join('') : emptyBox('🌱','Sin monitoreos','Registra el primero con el formulario de arriba.');
+}
+function exportarMonitoreoCSV(){
+  const head=['fecha','lote','nucleo','especie','estado','rango_altura','altura_cm','tiene_foto','observaciones','registra'];
+  const rows=[head];
+  state.monitoreos.forEach(m=>{
+    const l=loteById(m.loteId)||{};
+    rows.push([m.fecha||'', `Lote ${l.numero||''}${l.nombre?' - '+l.nombre:''}`, m.nucleo??'',
+      m.especie||'', m.estado||'', m.rangoAltura||'', m.altura||'', m.tieneFoto?'sí':'no', m.observaciones||'', m.usuario||'']);
+  });
+  const csv=rows.map(r=>r.map(c=>{ const s=String(c??''); return /[",;\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(';')).join('\n');
+  descargar(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}), `monitoreo-siembra-arboles_${hoy()}.csv`);
 }
 
 /* ============================================================ Cálculos en vivo ============================================================ */
@@ -783,8 +1211,12 @@ function editarLote(id){
 }
 function borrarLote(id){
   const usos=state.registros.filter(r=>r.loteId===id).length;
-  if(!confirm(`¿Borrar este lote?${usos?` Tiene ${usos} registro(s) que también se borrarán.`:''}`)) return;
+  const mons=state.monitoreos.filter(m=>m.loteId===id);
+  const detalle=[usos?`${usos} registro(s)`:'', mons.length?`${mons.length} monitoreo(s)`:''].filter(Boolean).join(' y ');
+  if(!confirm(`¿Borrar este lote?${detalle?` Tiene ${detalle} que también se borrarán.`:''}`)) return;
+  mons.forEach(m=>borrarFoto(m.id));
   state.lotes=state.lotes.filter(l=>l.id!==id); state.registros=state.registros.filter(r=>r.loteId!==id);
+  state.monitoreos=state.monitoreos.filter(m=>m.loteId!==id);
   save(); poblarSelects(); render();
 }
 
@@ -815,6 +1247,12 @@ function borrarRegistro(id){ if(!confirm('¿Borrar este registro?'))return; stat
 function resetForm(which){
   if(which==='lote'){ $('formLote').reset(); $('loteId').value=''; $('l_cancel').style.display='none'; $('l_preview').innerHTML=''; }
   if(which==='reg'){ $('formReg').reset(); $('regId').value=''; $('r_cancel').style.display='none'; $('r_valor').value=state.config.valorJornal; $('r_insumos').innerHTML=''; addInsumoRow(); $('r_derived').innerHTML=''; $('r_nucCount').innerHTML=''; nucSel.clear(); renderNucPicker(); }
+  if(which==='mon'){
+    $('formMon').reset(); $('monId').value=''; $('m_cancel').style.display='none';
+    monEstado=''; monRango=''; quitarFotoMon();
+    $('m_otraBox').style.display='none'; $('m_espInfo').textContent=''; $('m_derived').innerHTML=''; $('m_mapa').innerHTML='';
+    renderOpcionesMon(); poblarMonSelects();
+  }
   if(which==='bodega'){ $('formBodega').reset(); $('b_id').value=''; $('b_cancel').style.display='none'; }
 }
 function irA(view){ document.querySelector(`.tab[data-view="${view}"]`).click(); setTimeout(()=>window.scrollTo({top:70,behavior:'smooth'}),60); }
@@ -1154,7 +1592,7 @@ function renderUsuariosConfig(){
 }
 
 /* ============================================================ Render ============================================================ */
-function render(){ poblarSelects(); renderNucPicker(); renderResumen(); renderLotes(); renderRegistros(); renderInventario(); renderPorAceptar(); renderBodegasConfig(); renderUsuariosConfig(); renderConfig(); }
+function render(){ poblarSelects(); renderNucPicker(); poblarMonSelects(); renderOpcionesMon(); renderMonitoreos(); renderResumen(); renderLotes(); renderRegistros(); renderInventario(); renderPorAceptar(); renderBodegasConfig(); renderUsuariosConfig(); renderConfig(); }
 
 function renderLotes(){
   const cont=$('listaLotes');
@@ -1324,8 +1762,8 @@ function cargarEjemplo(){
   const l0=uid(), l2=uid();
   const nucSIG = num => { const s=SIG.lotes[num]; return s?compressRanges(s.nucleos.map(n=>n[0])):''; };
   state.lotes=[
-    {id:l0,numero:'0',nombre:'Piloto Biodiversa',nucleos:nucSIG('0')||'1-73',notas:'Frente piloto en ejecución. La Guajira, Vda. Las Delicias.'},
-    {id:l2,numero:'2',nombre:'La Guajira',nucleos:nucSIG('2')||'1-9, 11-30',notas:'Núcleos cartografiados por el SIG (buffer de 6 m).'},
+    {id:l0,numero:'0',nombre:'Piloto Biodiversa',nucleos:nucSIG('0')||'1-73',notas:'Frente piloto en ejecución.'},
+    {id:l2,numero:'2',nombre:'Nucleación enriquecimiento',nucleos:nucSIG('2')||'1-9, 11-30',notas:'Núcleos cartografiados por el SIG (buffer de 6 m).'},
   ];
   const vj=state.config.valorJornal;
   const R=(fecha,act,nuc,personas,jornales,insumos,notas='')=>({id:uid(),fecha,loteId:l0,actividad:act,grupo:ACT_GRUPO[act]||'',nucleos:parseNucleos(nuc),insumos:insumos||[],personas,jornales,valorJornal:vj,notas});
@@ -1337,6 +1775,22 @@ function cargarEjemplo(){
     R('2026-07-18','Siembra','1-10',6,8,[]),
     R('2026-07-21','Fertilización','1-13',4,7,[{insumo:'Fertiorgánico Bosplant',cantidad:1.5,unidad:'Bulto',costoUnitario:80000}]),
     R('2026-07-21','Fertirriego','1-13',2,3,[{insumo:'Combustible',cantidad:0.5,unidad:'Litros',costoUnitario:12000}]),
+  ];
+  // Monitoreo de ejemplo: unas cuantas observaciones de Mónica sobre lo sembrado
+  const MO=(fecha,loteId,nucleo,slug,estado,rango,obs,altura)=>{
+    const e=ESPECIES_VIVERO.find(x=>x.slug===slug)||{};
+    return {id:uid(),fecha,loteId,nucleo,especieSlug:slug,
+      especie:e.comun?(e.cientifico?`${e.comun} — ${e.cientifico}`:e.comun):slug,
+      estado,rangoAltura:rango,altura:altura||null,observaciones:obs||'',tieneFoto:false,usuario:'Mónica Sarmiento'};
+  };
+  const sl=n=>(ESPECIES_VIVERO[n]||{}).slug;
+  state.monitoreos=[
+    MO('2026-08-18',l0,1,sl(0),'Bueno','100-150','Rebrote fuerte, sin competencia.',120),
+    MO('2026-08-18',l0,1,sl(4),'Regular','50-100','Algo de competencia con gramínea.'),
+    MO('2026-08-18',l0,2,sl(0),'Bueno','50-100',''),
+    MO('2026-08-18',l0,3,sl(10),'Muerto','0-50','Se secó, reponer en la próxima entrega del vivero.'),
+    MO('2026-08-19',l2,5,sl(4),'Bueno','+150','',165),
+    MO('2026-08-19',l2,6,sl(16),'Regular','50-100','Daño leve por hormiga arriera.'),
   ];
   // Usuarios + bodegas (ids fijos del seed) + movimientos: Katys recibe del proveedor y traslada a los responsables
   state.usuarios=USUARIOS_SEED.map(x=>({...x,bodegaIds:[...x.bodegaIds]}));
@@ -1362,7 +1816,7 @@ function cargarEjemplo(){
 function exportarJSON(){ descargar(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}), `monitoreo-siembra_${hoy()}.json`); }
 function importarJSON(ev){
   const file=ev.target.files[0]; if(!file) return; const r=new FileReader();
-  r.onload=()=>{ try{ const s=JSON.parse(r.result); if(!s.lotes||!s.registros) throw 0; state=s; state.bodegas||=BODEGAS_SEED.map(x=>({...x})); state.movimientos||=[]; state.usuarios||=USUARIOS_SEED.map(x=>({...x,bodegaIds:[...x.bodegaIds]})); state.config??=estadoInicial().config; state.config.catalogoInsumos||=INSUMOS_SEED.map(x=>({...x})); state.config.valorJornal??=60000; save(); poblarSelects(); aplicarSesion(); alert('Datos importados.'); }
+  r.onload=()=>{ try{ const s=JSON.parse(r.result); if(!s.lotes||!s.registros) throw 0; state=s; state.monitoreos||=[]; state.bodegas||=BODEGAS_SEED.map(x=>({...x})); state.movimientos||=[]; state.usuarios||=USUARIOS_SEED.map(x=>({...x,bodegaIds:[...x.bodegaIds]})); state.config??=estadoInicial().config; state.config.catalogoInsumos||=INSUMOS_SEED.map(x=>({...x})); state.config.valorJornal??=60000; state.config.especiesExtra||=[]; save(); poblarSelects(); aplicarSesion(); alert('Datos importados.\n\nOjo: las fotos del monitoreo no viajan en el respaldo, se quedan en el dispositivo donde se tomaron.'); }
     catch(e){ alert('El archivo no es un respaldo válido de esta app.'); } ev.target.value=''; };
   r.readAsText(file);
 }
@@ -1391,6 +1845,8 @@ $('r_valor').value=state.config.valorJornal;
 addInsumoRow();
 poblarSelects();
 renderNucPicker();
+$('m_fecha').value = hoy();
+renderOpcionesMon();
 aplicarSesion();   // muestra el login si no hay sesión; si la hay, aplica rol + render
 </script>
 <!-- Guarda la app en el dispositivo para usarla sin internet, y avisa con un
