@@ -1,8 +1,8 @@
 /* Service worker de las apps de campo de Amazonía Emprende.
-   Guarda las dos apps en el dispositivo para que funcionen sin internet.
+   Guarda las tres apps en el dispositivo para que funcionen sin internet.
    Sube el número de VERSION cuando cambies algo, para que se reemplace lo guardado. */
 
-const VERSION = 'ae-campo-v6';
+const VERSION = 'ae-campo-v7';
 const CACHE = `${VERSION}`;
 
 /* Todo lo que hace falta para que las apps abran sin conexión. */
@@ -26,6 +26,13 @@ const PRECARGA = [
   '/insumos/icon-180.png',
   '/insumos/icon-192.png',
   '/insumos/icon-512.png',
+  '/semilleros/',
+  '/semilleros/index.html',
+  '/semilleros/arboles.js',
+  '/semilleros/manifest.json',
+  '/semilleros/icon-180.png',
+  '/semilleros/icon-192.png',
+  '/semilleros/icon-512.png',
 ];
 
 self.addEventListener('install', (ev) => {

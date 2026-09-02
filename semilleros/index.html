@@ -1,0 +1,2016 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitoreo de Árboles Semilleros — Solano</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#2f3f32">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Semilleros Solano">
+<style>
+  :root{
+    --verde: #2f3f32;
+    --verde-claro: #46614c;
+    --hueso: #f6f3ec;
+    --ambar: #e1a644;
+    --ambar-osc: #c78a2c;
+    --texto: #26302a;
+    --borde: #d8d2c2;
+    --rojo: #b24444;
+    --card: #ffffff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:'Poppins','Segoe UI',Arial,sans-serif;
+    background:var(--hueso); color:var(--texto);
+  }
+  h1,h2,h3{font-family:'Josefin Sans','Poppins','Segoe UI',Arial,sans-serif; letter-spacing:.02em;}
+  header{
+    background:var(--verde); color:var(--hueso); padding:14px 18px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
+  }
+  header h1{margin:0; font-size:1.25rem; font-weight:600;}
+  header .sub{font-size:.75rem; opacity:.8; margin-top:2px;}
+  nav{display:flex; gap:6px; background:var(--verde-claro); padding:6px 12px; flex-wrap:wrap;}
+  nav button{
+    background:transparent; border:none; color:var(--hueso); padding:8px 14px; border-radius:6px;
+    cursor:pointer; font-family:inherit; font-size:.9rem; opacity:.8;
+  }
+  nav button.active{background:var(--ambar); color:var(--verde); opacity:1; font-weight:600;}
+  main{max-width:960px; margin:0 auto; padding:16px;}
+  .card{
+    background:var(--card); border:1px solid var(--borde); border-radius:10px;
+    padding:16px; margin-bottom:16px;
+  }
+  .card h2{margin-top:0;}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  @media (max-width:640px){ .grid{grid-template-columns:1fr;} }
+  label{display:block; font-size:.82rem; font-weight:600; margin-bottom:4px; color:var(--verde);}
+  input[type=text], input[type=number], input[type=date], input[type=month], select, textarea{
+    width:100%; padding:9px 10px; border:1px solid var(--borde); border-radius:6px;
+    font-family:inherit; font-size:.95rem; background:#fff; color:var(--texto);
+  }
+  textarea{min-height:70px; resize:vertical;}
+  .campo{margin-bottom:14px;}
+  .hint{font-size:.75rem; color:#6b7368; margin-top:3px; line-height:1.5;}
+  .btn{
+    background:var(--verde); color:#fff; border:none; padding:10px 18px; border-radius:7px;
+    cursor:pointer; font-family:inherit; font-size:.95rem; font-weight:600;
+  }
+  .btn:hover{background:var(--verde-claro);}
+  .btn.ambar{background:var(--ambar); color:var(--verde);}
+  .btn.ambar:hover{background:var(--ambar-osc); color:#fff;}
+  .btn.rojo{background:var(--rojo); color:#fff;}
+  .btn.ghost{background:transparent; border:1px solid var(--borde); color:var(--texto);}
+  .btn.small{padding:5px 10px; font-size:.8rem;}
+  .btn:disabled{opacity:.45; cursor:not-allowed;}
+  .fila-check{display:flex; flex-wrap:wrap; gap:10px;}
+  .fila-check label{
+    display:flex; align-items:center; gap:6px; font-weight:400; color:var(--texto);
+    border:1px solid var(--borde); border-radius:6px; padding:7px 10px; cursor:pointer; margin:0;
+  }
+  .fila-check input{width:auto;}
+  table{width:100%; border-collapse:collapse; font-size:.85rem;}
+  th,td{text-align:left; padding:7px 8px; border-bottom:1px solid var(--borde); vertical-align:top;}
+  th{color:var(--verde); font-size:.75rem; text-transform:uppercase; letter-spacing:.03em;}
+  tr:hover td{background:#faf8f2;}
+  .badge{
+    display:inline-block; background:var(--verde); color:#fff; border-radius:10px; padding:1px 8px;
+    font-size:.72rem; margin:1px 2px 1px 0;
+  }
+  .toolbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px;}
+  .toolbar input, .toolbar select{width:auto; min-width:140px;}
+  .vacio{color:#8a8f86; font-style:italic; padding:12px 0;}
+  .stat{display:inline-block; background:var(--hueso); border-radius:8px; padding:10px 16px; margin:0 8px 8px 0;}
+  .stat b{display:block; font-size:1.4rem; color:var(--verde);}
+  .stat span{font-size:.75rem; color:#6b7368;}
+  .cerrar{cursor:pointer; background:none; border:none; color:var(--rojo); font-weight:700;}
+  footer{text-align:center; font-size:.75rem; color:#8a8f86; padding:20px;}
+  .config-item{display:flex; gap:8px; align-items:center; margin-bottom:6px;}
+  .config-item input{flex:1;}
+  .oculto{display:none !important;}
+  .inicio{
+    display:inline-flex; align-items:center; gap:6px; text-decoration:none; white-space:nowrap;
+    color:var(--hueso); border:1px solid rgba(246,243,236,.35); border-radius:8px;
+    padding:7px 12px; font-size:.85rem; font-weight:600;
+  }
+  .inicio:hover{background:rgba(246,243,236,.14);}
+  .banner{margin:0 0 14px; padding:10px 14px; border-radius:8px; font-size:.88rem; line-height:1.45;}
+  .banner-ok{background:#eaf3ea; border:1px solid #b9d3bd; color:var(--verde);}
+  .banner-error{background:#f8e9e9; border:1px solid #e0b6b6; color:var(--rojo); font-weight:600;}
+  #toast{position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:var(--verde);
+    color:var(--hueso); padding:11px 18px; border-radius:24px; font-size:.88rem;
+    box-shadow:0 6px 18px rgba(0,0,0,.22); z-index:60; max-width:90vw; text-align:center;}
+  table.estado th{width:40%; text-transform:none; letter-spacing:0; font-size:.82rem; vertical-align:top; padding-top:9px;}
+  table.estado code{background:var(--hueso); padding:1px 5px; border-radius:4px; font-size:.78rem; word-break:break-all;}
+  table.estado .hint{margin-top:4px;}
+  .pill{display:inline-block; border-radius:10px; padding:1px 9px; font-size:.75rem; font-weight:600;}
+  .pill.ok{background:#dfeee1; color:#2f5b38;}
+  .pill.warn{background:#f7e6c9; color:#8a5f10;}
+  .pill.mal{background:#f3dede; color:#8d2f2f;}
+  .gps-caja{border:1px solid var(--borde); border-radius:8px; padding:10px 12px; background:var(--hueso); font-size:.85rem;}
+  .gps-caja .titulo{font-weight:600; color:var(--verde); display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .gps-luz{width:9px; height:9px; border-radius:50%; display:inline-block; background:#9aa39b; flex-shrink:0;}
+  .gps-luz.ok{background:#4a8c5a;}
+  .gps-luz.buscando{background:var(--ambar); animation:latido 1.2s infinite;}
+  .gps-luz.mal{background:var(--rojo);}
+  @keyframes latido{0%,100%{opacity:1}50%{opacity:.25}}
+  .mono{font-family:ui-monospace,Consolas,'Courier New',monospace;}
+  .gps-coords{font-size:.8rem; color:#4a5249; margin-top:4px;}
+  .cientifico{font-style:italic;}
+
+  /* ---- código del árbol: el campo más delicado de la app ---- */
+  #codigo-arbol{font-size:1.5rem; font-weight:700; letter-spacing:.12em; text-align:center; padding:12px;}
+  .sugerencias{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; max-height:140px; overflow-y:auto;}
+  .sugerencias button{
+    background:#fff; border:1px solid var(--borde); border-radius:7px; padding:6px 10px;
+    font-family:inherit; font-size:.85rem; cursor:pointer; text-align:left; color:var(--texto);
+  }
+  .sugerencias button:hover{border-color:var(--verde); background:var(--hueso);}
+  .sugerencias b{font-family:ui-monospace,Consolas,monospace; color:var(--verde);}
+  .arbol-card{border-radius:9px; padding:12px 14px; margin-top:10px; border:1px solid;}
+  .arbol-card.ok{background:#eef5ef; border-color:#b9d3bd;}
+  .arbol-card.duda{background:#fdf4e3; border-color:#e8cf9d;}
+  .arbol-card.mal{background:#f8e9e9; border-color:#e0b6b6;}
+  .arbol-card .nom{font-size:1.05rem; font-weight:700; color:var(--verde);}
+  .arbol-card .datos{font-size:.8rem; color:#5b6259; margin-top:6px; display:flex; gap:14px; flex-wrap:wrap;}
+  .arbol-card .aviso{margin-top:9px; font-size:.84rem; display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+
+  /* ---- fenología: escala 0-100 en botones, un toque por variable ---- */
+  .feno-fila{display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid #eae5d8; flex-wrap:wrap;}
+  .feno-fila:last-child{border-bottom:none;}
+  .feno-nombre{flex:1 1 150px; font-size:.9rem; font-weight:600; color:var(--verde);}
+  .feno-fila.pendiente .feno-nombre::after{content:' •'; color:var(--ambar-osc);}
+  .segmento{display:flex; border:1px solid var(--borde); border-radius:7px; overflow:hidden; background:#fff;}
+  .segmento button{
+    border:none; background:transparent; padding:9px 0; width:52px; cursor:pointer;
+    font-family:inherit; font-size:.85rem; color:#6b7368; border-right:1px solid var(--borde);
+  }
+  .segmento button:last-child{border-right:none;}
+  .segmento button.sel{background:var(--ambar); color:var(--verde); font-weight:700;}
+  .segmento button.sel.cero{background:var(--verde); color:var(--hueso);}
+  .leyenda{font-size:.75rem; color:#6b7368; margin-top:10px; line-height:1.7;}
+  .chips{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:7px;}
+  .chips button{
+    background:var(--hueso); border:1px solid var(--borde); border-radius:14px; padding:4px 11px;
+    font-family:inherit; font-size:.8rem; cursor:pointer; color:var(--texto);
+  }
+  .chips button:hover{background:#ece7db;}
+
+  /* ---- recorrido del predio ---- */
+  .progreso{background:var(--hueso); border-radius:6px; height:12px; overflow:hidden; margin:8px 0 4px;}
+  .progreso div{background:var(--ambar); height:100%;}
+  .arbol-fila{display:flex; align-items:center; gap:10px; padding:9px 4px; border-bottom:1px solid #f0ede4; flex-wrap:wrap;}
+  .arbol-fila .cod{font-family:ui-monospace,Consolas,monospace; font-weight:700; color:var(--verde); width:48px; flex-shrink:0;}
+  .arbol-fila .nm{flex:1 1 160px; font-size:.88rem;}
+  .arbol-fila .nm small{display:block; font-style:italic; color:#6b7368;}
+
+  /* ---- calendario fenológico ---- */
+  .cal-scroll{overflow-x:auto;}
+  table.cal{border-collapse:separate; border-spacing:2px; font-size:.78rem; min-width:640px;}
+  table.cal th{padding:4px 6px; font-size:.72rem; white-space:nowrap; border:none;}
+  table.cal th.fase{text-align:left; text-transform:none; letter-spacing:0; font-size:.8rem; width:160px;}
+  table.cal td{
+    border:none; text-align:center; padding:0; height:30px; width:44px; border-radius:4px;
+    background:#f2efe6; color:#8a8f86; font-size:.72rem;
+  }
+  table.cal td.n1{background:#f6e7c8; color:#7a5c1c;}
+  table.cal td.n2{background:#eecf94; color:#5e440f;}
+  table.cal td.n3{background:#e1a644; color:#4a3608; font-weight:600;}
+  table.cal td.n4{background:#c78a2c; color:#fff; font-weight:700;}
+  table.cal td.sindato{background:repeating-linear-gradient(45deg,#f4f1e8,#f4f1e8 4px,#ebe6d9 4px,#ebe6d9 8px); color:transparent;}
+  .cal-leyenda{display:flex; gap:14px; flex-wrap:wrap; font-size:.75rem; color:#6b7368; margin-top:10px; align-items:center;}
+  .cal-leyenda i{display:inline-block; width:16px; height:12px; border-radius:3px; margin-right:4px; vertical-align:-1px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🌳 Monitoreo de Árboles Semilleros</h1>
+    <div class="sub">Solano, Caquetá — Amazonía Emprende</div>
+  </div>
+  <a class="inicio" href="../" title="Volver al inicio">← Inicio</a>
+</header>
+<nav>
+  <button data-tab="registro" class="active">Registrar</button>
+  <button data-tab="recorrido">Recorrido</button>
+  <button data-tab="historial">Historial</button>
+  <button data-tab="calendario">Calendario</button>
+  <button data-tab="config">Configuración</button>
+</nav>
+
+<main>
+
+  <div id="banner" class="banner oculto"></div>
+
+  <!-- ===================== REGISTRO ===================== -->
+  <section id="tab-registro">
+    <div class="card">
+      <h2>Nuevo monitoreo</h2>
+      <form id="form-monitoreo">
+
+        <div class="grid">
+          <div class="campo">
+            <label for="predio">Predio</label>
+            <select id="predio" required></select>
+          </div>
+          <div class="campo">
+            <label for="monitor">Nombre de quien registra</label>
+            <select id="monitor" required></select>
+          </div>
+          <div class="campo">
+            <label for="fecha">Fecha del monitoreo</label>
+            <input type="date" id="fecha" required>
+          </div>
+          <div class="campo">
+            <label for="clima">Clima</label>
+            <select id="clima" required>
+              <option value="">Selecciona…</option>
+              <option>Soleado</option>
+              <option>Nublado</option>
+              <option>Lluvias leves</option>
+              <option>Lluvias fuertes</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="codigo-arbol">Código de la placa del árbol</label>
+          <input type="text" id="codigo-arbol" inputmode="numeric" autocomplete="off"
+                 maxlength="5" placeholder="000">
+          <div id="sugerencias" class="sugerencias"></div>
+          <div id="arbol-info"></div>
+          <div class="hint">
+            El nombre común y el científico los pone la app: salen de la base de árboles de Solano.
+            Si no recuerdas el código, búscalo en la pestaña <b>Recorrido</b>.
+          </div>
+        </div>
+
+        <div class="card" style="background:var(--hueso); border:none; padding:12px 14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <h3 style="margin:0; font-size:1rem;">Fenología</h3>
+            <button type="button" class="btn ghost small" id="btn-todo-cero">Marcar todo en 0</button>
+          </div>
+          <div id="fenologia"></div>
+          <div class="leyenda">
+            % de la copa ocupado por cada estado.
+            <b>100</b> abundante (más del 75 %) ·
+            <b>75</b> buena (50 – 75 %) ·
+            <b>50</b> regular (25 – 50 %) ·
+            <b>25</b> poca (menos del 25 %) ·
+            <b>0</b> ausente
+          </div>
+        </div>
+
+        <div class="campo">
+          <label>Estado fitosanitario</label>
+          <div class="fila-check" id="fitosanitario">
+            <label><input type="checkbox" value="Sano"> Sano</label>
+            <label><input type="checkbox" value="Enfermo"> Enfermo</label>
+            <label><input type="checkbox" value="Presencia de insectos"> Presencia de insectos</label>
+            <label><input type="checkbox" value="Presencia de hongos"> Presencia de hongos</label>
+            <label><input type="checkbox" value="Afectación mecánica"> Afectación mecánica</label>
+          </div>
+          <div class="hint">Se puede marcar más de uno. «Sano» no se combina con los demás.</div>
+        </div>
+
+        <div class="campo">
+          <div class="fila-check">
+            <label><input type="checkbox" id="cambio-placa"> Se cambió la placa del árbol</label>
+          </div>
+          <div id="placa-anterior-caja" class="oculto" style="margin-top:10px;">
+            <label for="placa-anterior">Código de la placa anterior</label>
+            <input type="text" id="placa-anterior" inputmode="numeric" maxlength="5" placeholder="000">
+            <div class="hint">Queda en su propio campo, no dentro de las observaciones: así se puede rastrear el cambio después.</div>
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="observaciones">Observaciones</label>
+          <div class="chips" id="chips-obs"></div>
+          <textarea id="observaciones" placeholder="Solo lo que no quepa en los campos de arriba."></textarea>
+        </div>
+
+        <div class="campo">
+          <label>Ubicación (GPS del dispositivo)</label>
+          <div class="gps-caja" id="gps-caja"></div>
+        </div>
+
+        <button type="submit" class="btn ambar" id="btn-guardar">Guardar monitoreo</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ===================== RECORRIDO ===================== -->
+  <section id="tab-recorrido" class="oculto">
+    <div class="card">
+      <h2>Recorrido del predio</h2>
+      <div class="toolbar">
+        <select id="recorrido-predio"></select>
+        <input type="month" id="recorrido-mes">
+        <input type="text" id="recorrido-buscar" placeholder="Buscar código o especie…">
+      </div>
+      <div id="recorrido-resumen"></div>
+      <div id="recorrido-lista"></div>
+    </div>
+  </section>
+
+  <!-- ===================== HISTORIAL ===================== -->
+  <section id="tab-historial" class="oculto">
+    <div class="card">
+      <h2>Monitoreos registrados</h2>
+      <div class="toolbar">
+        <select id="filtro-predio"><option value="">Todos los predios</option></select>
+        <input type="text" id="filtro-texto" placeholder="Filtrar por código o especie…">
+        <button class="btn ghost small" id="btn-limpiar-filtros">Limpiar</button>
+        <button class="btn small" id="btn-exportar-csv">⬇ Exportar CSV</button>
+        <button class="btn small" id="btn-exportar-geojson">⬇ Exportar GeoJSON</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="tabla-historial">
+          <thead>
+            <tr>
+              <th>Fecha</th><th>Código</th><th>Especie</th><th>Predio</th>
+              <th>Fenología</th><th>Fitosanitario</th><th>GPS</th><th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div id="historial-vacio" class="vacio oculto">Todavía no hay monitoreos guardados en este dispositivo.</div>
+    </div>
+  </section>
+
+  <!-- ===================== CALENDARIO ===================== -->
+  <section id="tab-calendario" class="oculto">
+    <div class="card">
+      <h2>Calendario fenológico</h2>
+      <div class="toolbar">
+        <select id="cal-agrupacion">
+          <option value="especie">Por especie</option>
+          <option value="predio">Por predio</option>
+          <option value="arbol">Por árbol</option>
+          <option value="todo">Todo junto</option>
+        </select>
+        <select id="cal-valor"></select>
+        <select id="cal-anio"></select>
+        <button class="btn small" id="btn-exportar-calendario">⬇ Exportar CSV</button>
+      </div>
+      <div id="calendario"></div>
+    </div>
+  </section>
+
+  <!-- ===================== CONFIGURACIÓN ===================== -->
+  <section id="tab-config" class="oculto">
+    <div class="card">
+      <h2>Quiénes registran</h2>
+      <div id="lista-monitores"></div>
+      <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn ghost small" id="btn-add-monitor">+ Añadir persona</button>
+        <button class="btn small" id="btn-guardar-monitores">Guardar</button>
+      </div>
+      <div class="hint" style="margin-top:8px;">
+        Esta lista es la que sale en el formulario. Es un desplegable a propósito: escribir el
+        nombre a mano fue lo que dejó «Luis carlos» y «Luis cralos» como dos personas distintas
+        en la base anterior.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Respaldo</h2>
+      <p style="font-size:.88rem; line-height:1.5;">
+        Los datos viven solo en este dispositivo. Exporta el respaldo antes de formatear el
+        celular, cambiar de navegador o entregar el equipo.
+      </p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn small" id="btn-exportar-json">⬇ Exportar respaldo (JSON)</button>
+        <label class="btn ghost small" style="margin:0; cursor:pointer;">
+          ⬆ Importar respaldo
+          <input type="file" id="input-importar" accept="application/json" class="oculto">
+        </label>
+        <button class="btn rojo small" id="btn-borrar-todo">Borrar todo</button>
+      </div>
+      <div class="hint" style="margin-top:8px;">Importar <b>suma</b> registros, no reemplaza: así se juntan varios celulares en uno.</div>
+    </div>
+
+    <div class="card">
+      <h2>Estado</h2>
+      <div id="estado-almacen"></div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Amazonía Emprende — Red de Árboles Semilleros · Solano, Caquetá<br>
+  Funciona sin conexión. Los datos quedan en este dispositivo.
+</footer>
+
+<div id="toast" class="oculto"></div>
+
+<script src="/actualizar.js"></script>
+<script src="arboles.js"></script>
+<script>
+/* =========================================================================
+   ALMACENAMIENTO LOCAL — offline-first, una copia completa por dispositivo
+   -------------------------------------------------------------------------
+   Misma capa que la app de aves, y por los mismos motivos:
+   1. Nada se guarda "en la nube". Cada celular tiene sus propios datos.
+   2. Toda escritura va a DOS sitios del mismo navegador: localStorage
+      (rápido, síncrono) e IndexedDB (respaldo). Si uno se pierde, el otro
+      reconstruye.
+   3. Ninguna escritura se da por buena sin confirmarla: si falla, la app lo
+      dice y NO limpia el formulario.
+   4. Nada se borra de verdad: eliminar marca `eliminado:true`.
+   5. Cada registro nace con la forma que necesitará Supabase (uuid, creadoEn,
+      actualizadoEn, dispositivo, sincronizado), para que lo recogido en el
+      piloto se pueda subir tal cual sin volver a digitarlo.
+   ========================================================================= */
+
+const APP_VERSION    = '1.0';
+const LS_KEY         = 'sem_monitoreos_v1';
+const LS_PUNTOS      = 'sem_puntos_v1';
+const LS_MONITORES   = 'sem_monitores_v1';
+const LS_DISPOSITIVO = 'sem_dispositivo_id';
+const LS_BORRADOR    = 'sem_borrador_v1';
+const LS_PREFS       = 'sem_prefs_v1';      // últimas elecciones: predio, monitor, clima
+const LS_META        = 'sem_meta_v1';
+const IDB_NOMBRE     = 'sem_monitoreo';
+const IDB_STORE      = 'respaldo';
+
+/* Las nueve fenofases del formulario, en el orden en que se observan:
+   primero la hoja, luego la flor, luego el fruto, al final la regeneración. */
+const FENOFASES = [
+  {k:'hoja',            n:'Hoja'},
+  {k:'botonFloral',     n:'Botón floral'},
+  {k:'floracion',       n:'Floración'},
+  {k:'abortoFloral',    n:'Aborto floral'},
+  {k:'frutoInmaduro',   n:'Fruto inmaduro'},
+  {k:'frutoMaduro',     n:'Fruto maduro'},
+  {k:'frutoPostmaduro', n:'Fruto postmaduro'},
+  {k:'abortoFrutal',    n:'Aborto frutal'},
+  {k:'plantulas',       n:'Plántulas'}
+];
+
+/* Escala de cobertura. Los valores son los mismos que ya se usan en Kobo, para
+   que lo viejo y lo nuevo se puedan juntar sin convertir nada. */
+const ESCALA = [0, 25, 50, 75, 100];
+
+const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+/* Observaciones que se repiten en campo. Están como botones para que la nota
+   frecuente no se escriba a mano cada vez (y no se escriba distinto cada vez). */
+const OBS_FRECUENTES = [
+  'Árbol en buen estado',
+  'Placa ilegible',
+  'Lianas o bejucos en la copa',
+  'Epífitas abundantes',
+  'Árbol caído',
+  'Rebrote',
+  'Frutos en el suelo',
+  'Semillas recolectadas',
+  'No se pudo observar la copa'
+];
+
+let ultimoErrorAlmacen = null;
+
+// ---------- utilidades ----------
+function esc(s){
+  return (s ?? '').toString()
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function uuid(){
+  if(self.crypto && crypto.randomUUID) return crypto.randomUUID();
+  if(self.crypto && crypto.getRandomValues){
+    const b = crypto.getRandomValues(new Uint8Array(16));
+    b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+    const h = Array.from(b, x => x.toString(16).padStart(2,'0')).join('');
+    return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random()*16|0; const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+function ahora(){ return new Date().toISOString(); }
+function normalizar(s){
+  return (s||'').toString().normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+}
+function hoyISO(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// ---------- localStorage con verificación ----------
+function lsLeer(clave, porDefecto){
+  try{
+    const crudo = localStorage.getItem(clave);
+    if(crudo === null) return porDefecto;
+    return JSON.parse(crudo);
+  }catch(e){ return porDefecto; }
+}
+function lsEscribir(clave, valor){
+  try{
+    localStorage.setItem(clave, JSON.stringify(valor));
+    ultimoErrorAlmacen = null;
+    return true;
+  }catch(e){
+    ultimoErrorAlmacen = (e && e.name === 'QuotaExceededError')
+      ? 'No queda espacio en el navegador. Exporta un respaldo JSON y purga lo ya exportado.'
+      : 'El navegador rechazó guardar (¿modo incógnito o almacenamiento bloqueado?). Exporta un respaldo JSON antes de cerrar.';
+    return false;
+  }
+}
+
+// ---------- IndexedDB (espejo de respaldo) ----------
+let idbDisponible = null;   // null = sin probar · true/false = resultado
+function idbAbrir(){
+  return new Promise((resolve, reject) => {
+    if(!self.indexedDB){ idbDisponible = false; return reject(new Error('sin indexedDB')); }
+    const req = indexedDB.open(IDB_NOMBRE, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if(!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+    };
+    req.onsuccess = () => { idbDisponible = true; resolve(req.result); };
+    req.onerror   = () => { idbDisponible = false; reject(req.error); };
+  });
+}
+async function idbEscribir(clave, valor){
+  try{
+    const db = await idbAbrir();
+    await new Promise((res, rej) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(valor, clave);
+      tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+    });
+    db.close();
+    return true;
+  }catch(e){ return false; }
+}
+async function idbLeer(clave){
+  try{
+    const db = await idbAbrir();
+    const valor = await new Promise((res, rej) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const r = tx.objectStore(IDB_STORE).get(clave);
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+    db.close();
+    return valor;
+  }catch(e){ return undefined; }
+}
+
+// ---------- identidad del dispositivo ----------
+function idDispositivo(){
+  let id = null;
+  try{ id = localStorage.getItem(LS_DISPOSITIVO); }catch(e){}
+  if(!id){
+    id = uuid();
+    try{ localStorage.setItem(LS_DISPOSITIVO, id); }catch(e){}
+  }
+  return id;
+}
+
+// ---------- forma del registro ----------
+const ES_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function normalizarFenologia(f){
+  const salida = {};
+  FENOFASES.forEach(({k}) => {
+    const v = f ? Number(f[k]) : NaN;
+    salida[k] = ESCALA.includes(v) ? v : null;   // null = no se observó, distinto de 0
+  });
+  return salida;
+}
+
+function normalizarRegistro(r){
+  const t = r.creadoEn || ahora();
+  const idOk = typeof r.id === 'string' && ES_UUID.test(r.id);
+  return {
+    id:                  idOk ? r.id : uuid(),
+    fecha:               r.fecha || '',
+    predio:              r.predio || '',
+    codigoArbol:         (r.codigoArbol || '').toString().trim(),
+    nombreComun:         r.nombreComun || '',
+    nombreCientifico:    r.nombreCientifico || '',
+    familia:             r.familia || '',
+    enBase:              r.enBase !== false,      // false = árbol que no está en la base de Solano
+    clima:               r.clima || '',
+    fenologia:           normalizarFenologia(r.fenologia),
+    estadoFitosanitario: Array.isArray(r.estadoFitosanitario) ? r.estadoFitosanitario : [],
+    cambioPlaca:         r.cambioPlaca === true,
+    placaAnterior:       (r.placaAnterior || '').toString().trim(),
+    observaciones:       r.observaciones || '',
+    monitor:             r.monitor || '',
+    creadoEn:            t,
+    actualizadoEn:       r.actualizadoEn || t,
+    dispositivo:         r.dispositivo || idDispositivo(),
+    eliminado:           r.eliminado === true,
+    sincronizado:        r.sincronizado === true
+  };
+}
+
+// Une dos listas por id; ante el mismo id gana el `actualizadoEn` más reciente.
+// Es la misma regla que usará la sincronización con Supabase.
+function fusionar(a, b){
+  const mapa = new Map();
+  [...(a||[]), ...(b||[])].forEach(r0 => {
+    const r = normalizarRegistro(r0);
+    const previo = mapa.get(r.id);
+    if(!previo || (r.actualizadoEn || '') > (previo.actualizadoEn || '')) mapa.set(r.id, r);
+  });
+  return Array.from(mapa.values());
+}
+
+// ---------- persistencia (localStorage + espejo IndexedDB) ----------
+function meta(){ return lsLeer(LS_META, {ultimoGuardado:null, ultimaSync:null}); }
+
+function persistirMonitoreos(){
+  const ok = lsEscribir(LS_KEY, monitoreos);
+  if(ok){
+    const m = meta(); m.ultimoGuardado = ahora(); lsEscribir(LS_META, m);
+    idbEscribir('monitoreos', monitoreos);
+    ocultarBanner();
+  }else{
+    idbEscribir('monitoreos', monitoreos);
+    mostrarBanner('NO se pudo guardar en este navegador. ' + ultimoErrorAlmacen, 'error');
+  }
+  return ok;
+}
+function persistirMonitores(){
+  const ok = lsEscribir(LS_MONITORES, monitores);
+  if(ok) idbEscribir('monitores', monitores);
+  return ok;
+}
+
+/* ---------- Puntos GPS ----------
+   Van en su PROPIO almacén, no dentro del monitoreo: son otra capa de datos y
+   el día que esto suba a PostGIS será otra tabla, con su geometría y su índice
+   espacial. El vínculo es `monitoreoId`; uno por monitoreo. */
+function normalizarPunto(p){
+  const t = p.capturadoEn || ahora();
+  const idOk = typeof p.id === 'string' && ES_UUID.test(p.id);
+  const num = v => (v === null || v === undefined || v === '' || !isFinite(Number(v))) ? null : Number(v);
+  return {
+    id:            idOk ? p.id : uuid(),
+    monitoreoId:   p.monitoreoId || null,
+    latitud:       num(p.latitud),
+    longitud:      num(p.longitud),
+    precisionM:    num(p.precisionM),
+    altitudM:      num(p.altitudM),
+    precisionAltM: num(p.precisionAltM),
+    fuente:        p.fuente || 'gps',
+    capturadoEn:   t,
+    actualizadoEn: p.actualizadoEn || t,
+    dispositivo:   p.dispositivo || idDispositivo(),
+    eliminado:     p.eliminado === true,
+    sincronizado:  p.sincronizado === true
+  };
+}
+function fusionarPuntos(a, b){
+  const mapa = new Map();
+  [...(a||[]), ...(b||[])].forEach(p0 => {
+    const p = normalizarPunto(p0);
+    if(p.latitud === null || p.longitud === null) return;
+    const clave = p.monitoreoId || p.id;
+    const previo = mapa.get(clave);
+    if(!previo || (p.actualizadoEn || '') > (previo.actualizadoEn || '')) mapa.set(clave, p);
+  });
+  return Array.from(mapa.values());
+}
+function persistirPuntos(){
+  const ok = lsEscribir(LS_PUNTOS, puntos);
+  if(ok){ idbEscribir('puntos', puntos); ocultarBanner(); }
+  else{
+    idbEscribir('puntos', puntos);
+    mostrarBanner('NO se pudo guardar el punto GPS. ' + ultimoErrorAlmacen, 'error');
+  }
+  return ok;
+}
+function puntoDe(monitoreoId){
+  return puntos.find(p => p.monitoreoId === monitoreoId && !p.eliminado) || null;
+}
+function guardarPunto(monitoreoId, datos){
+  const p = normalizarPunto(Object.assign({monitoreoId, fuente:'gps', actualizadoEn: ahora()}, datos));
+  if(p.latitud === null || p.longitud === null) return null;
+  puntos = puntos.filter(x => x.monitoreoId !== monitoreoId).concat([p]);
+  const r = monitoreos.find(x => x.id === monitoreoId);
+  if(r && r.sincronizado){ r.sincronizado = false; persistirMonitoreos(); }
+  persistirPuntos();
+  return p;
+}
+
+// ---------- avisos ----------
+function mostrarBanner(texto, tipo){
+  const b = document.getElementById('banner');
+  b.textContent = texto;
+  b.className = 'banner ' + (tipo === 'error' ? 'banner-error' : 'banner-ok');
+}
+function ocultarBanner(){
+  const b = document.getElementById('banner');
+  if(b.classList.contains('banner-error')) return;   // un error se queda hasta que se resuelva
+  b.className = 'banner oculto';
+}
+let toastTimer = null;
+function toast(texto){
+  const t = document.getElementById('toast');
+  t.textContent = texto;
+  t.classList.remove('oculto');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> t.classList.add('oculto'), 2600);
+}
+
+// ---------- estado inicial ----------
+let monitoreos = (lsLeer(LS_KEY, []) || []).map(normalizarRegistro);
+let puntos     = (lsLeer(LS_PUNTOS, []) || []).map(normalizarPunto).filter(p => p.latitud !== null && p.longitud !== null);
+let monitores  = (function(){
+  const m = lsLeer(LS_MONITORES, null);
+  if(Array.isArray(m) && m.length) return m;
+  return ['Luis Carlos Cancimanci'];    // el único que aparece en la base actual
+})();
+let prefs = lsLeer(LS_PREFS, {predio:'', monitor:'', clima:''});
+
+function activos(){ return monitoreos.filter(r => !r.eliminado); }
+function guardarPrefs(){ lsEscribir(LS_PREFS, prefs); }
+
+/* ---------- Índice de la base de árboles ----------
+   El código de la placa es la llave de todo: con él se rellenan nombre común y
+   científico, y con él se decide si el registro puede entrar. */
+const POR_CODIGO = new Map(ARBOLES.map(a => [a.c, a]));
+const ARBOLES_POR_PREDIO = (() => {
+  const m = new Map();
+  ARBOLES.forEach(a => {
+    if(!m.has(a.p)) m.set(a.p, []);
+    m.get(a.p).push(a);
+  });
+  return m;
+})();
+// Los 92 nombres comunes de la base, para el caso raro del árbol sin placa
+// previa: ni ahí se escribe el nombre a mano.
+const ESPECIES = (() => {
+  const m = new Map();
+  ARBOLES.forEach(a => { if(!m.has(a.n)) m.set(a.n, a); });
+  return Array.from(m.values()).sort((x,y) => x.n.localeCompare(y.n,'es'));
+})();
+
+function arbolPorCodigo(cod){
+  return POR_CODIGO.get((cod||'').toString().trim().toLowerCase()) ||
+         POR_CODIGO.get((cod||'').toString().trim()) || null;
+}
+
+/* Distancia en metros entre dos coordenadas (Haversine). Sirve para avisar
+   cuando el árbol que se digitó está lejos de donde está parada la persona:
+   es el aviso que más rápido delata un código mal escrito. */
+function distanciaM(lat1, lon1, lat2, lon2){
+  const R = 6371000, rad = Math.PI/180;
+  const dLat = (lat2-lat1)*rad, dLon = (lon2-lon1)*rad;
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(lat1*rad)*Math.cos(lat2*rad)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+
+// ---------- Navegación ----------
+document.querySelectorAll('nav button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('main section').forEach(s=>s.classList.add('oculto'));
+    document.getElementById('tab-'+btn.dataset.tab).classList.remove('oculto');
+    if(btn.dataset.tab === 'registro') iniciarGps(); else detenerGps();
+    if(btn.dataset.tab === 'recorrido')  renderRecorrido();
+    if(btn.dataset.tab === 'historial')  renderHistorial();
+    if(btn.dataset.tab === 'calendario') renderCalendario();
+    if(btn.dataset.tab === 'config'){ renderMonitores(); renderEstadoAlmacen(); }
+  });
+});
+function irA(tab){
+  const btn = document.querySelector(`nav button[data-tab="${tab}"]`);
+  if(btn) btn.click();
+}
+
+// ---------- Desplegables ----------
+function pintarPredios(select, incluirTodos){
+  const previo = select.value;
+  select.innerHTML = (incluirTodos ? '<option value="">Todos los predios</option>' : '<option value="">Selecciona…</option>') +
+    PREDIOS.map(p => {
+      const n = (ARBOLES_POR_PREDIO.get(p) || []).length;
+      return `<option value="${esc(p)}">${esc(p)}${n ? ` (${n})` : ' — sin árboles'}</option>`;
+    }).join('');
+  select.value = previo;
+}
+function pintarMonitores(){
+  const select = document.getElementById('monitor');
+  const previo = select.value || prefs.monitor || '';
+  select.innerHTML = '<option value="">Selecciona…</option>' +
+    monitores.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
+  if(monitores.includes(previo)) select.value = previo;
+}
+
+/* =========================================================================
+   FENOLOGÍA — nueve variables, cinco valores, un toque cada una
+   -------------------------------------------------------------------------
+   Se pintan como botones y no como listas desplegables porque en campo, bajo
+   lluvia y con guantes, abrir nueve desplegables es lo que hace que la gente
+   deje campos sin llenar. `null` (sin tocar) es distinto de `0` (observado y
+   ausente): guardar un cero que nadie observó ensucia el calendario.
+   ========================================================================= */
+let fenologiaActual = normalizarFenologia({});
+
+function renderFenologia(){
+  const cont = document.getElementById('fenologia');
+  cont.innerHTML = FENOFASES.map(({k,n}) => {
+    const v = fenologiaActual[k];
+    return `
+      <div class="feno-fila ${v === null ? 'pendiente' : ''}" data-fase="${k}">
+        <div class="feno-nombre">${esc(n)}</div>
+        <div class="segmento">
+          ${ESCALA.map(x => `
+            <button type="button" data-fase="${k}" data-valor="${x}"
+                    class="${v === x ? 'sel' : ''} ${x === 0 ? 'cero' : ''}">${x}</button>`).join('')}
+        </div>
+      </div>`;
+  }).join('');
+}
+document.getElementById('fenologia').addEventListener('click', (ev)=>{
+  const b = ev.target.closest('button[data-fase]');
+  if(!b) return;
+  const fase = b.dataset.fase, valor = Number(b.dataset.valor);
+  // Volver a tocar el valor ya elegido lo deja sin responder: se puede corregir
+  // un toque accidental sin recargar el formulario.
+  fenologiaActual[fase] = (fenologiaActual[fase] === valor) ? null : valor;
+  renderFenologia();
+  guardarBorrador();
+});
+document.getElementById('btn-todo-cero').addEventListener('click', ()=>{
+  FENOFASES.forEach(({k}) => { fenologiaActual[k] = 0; });
+  renderFenologia();
+  guardarBorrador();
+  toast('Todo en 0. Ahora ajusta solo lo que se vea en el árbol.');
+});
+function fenologiaCompleta(){
+  return FENOFASES.every(({k}) => fenologiaActual[k] !== null);
+}
+function fenologiaFaltante(){
+  return FENOFASES.filter(({k}) => fenologiaActual[k] === null).map(f => f.n);
+}
+function resumenFenologia(f){
+  const partes = FENOFASES.filter(({k}) => f[k] > 0).map(({k,n}) => `${n} ${f[k]}%`);
+  return partes.length ? partes.join(' · ') : 'sin presencia de ninguna fenofase';
+}
+
+/* =========================================================================
+   CÓDIGO DEL ÁRBOL — el campo que más cuesta cuando sale mal
+   -------------------------------------------------------------------------
+   Cuatro filtros encadenados, de más barato a más caro:
+   1. El código tiene que EXISTIR en la base de Solano. Si no existe, no se
+      guarda: no hay forma de digitar 8O1 y que pase.
+   2. Tiene que pertenecer al predio elegido. Si pertenece a otro, se avisa y
+      se ofrece corregir el predio de un toque (baja el margen de error de 273
+      árboles a los ~20 de ese predio).
+   3. Se muestra la especie ANTES de guardar. Quien está parado frente a un
+      comino real y ve "Juansoco" en la pantalla se da cuenta al instante: es
+      el filtro más fuerte, porque la especie se verifica con los ojos.
+   4. Si hay señal de GPS, se compara con la coordenada registrada del árbol.
+      Un código equivocado casi siempre cae a cientos de metros.
+   Además se avisa si ese árbol ya tiene monitoreo en el mismo mes.
+   ========================================================================= */
+let arbolElegido   = null;   // el árbol de la base
+let arbolManual    = null;   // {codigo, n, s, f} cuando no está en la base
+const inputCodigo  = document.getElementById('codigo-arbol');
+
+function predioElegido(){ return document.getElementById('predio').value; }
+
+function monitoreoDelMes(codigo, fechaISO){
+  const mes = (fechaISO || '').slice(0,7);
+  if(!mes || !codigo) return null;
+  return activos().find(r => r.codigoArbol === codigo && (r.fecha || '').slice(0,7) === mes) || null;
+}
+
+function renderSugerencias(){
+  const cont = document.getElementById('sugerencias');
+  const txt  = inputCodigo.value.trim();
+  const predio = predioElegido();
+
+  if(arbolElegido || arbolManual || !predio){ cont.innerHTML = ''; return; }
+
+  const delPredio = ARBOLES_POR_PREDIO.get(predio) || [];
+  const candidatos = (txt
+      ? delPredio.filter(a => a.c.startsWith(txt))
+      : delPredio
+    ).slice(0, 12);
+
+  if(!candidatos.length){ cont.innerHTML = ''; return; }
+  cont.innerHTML = candidatos.map(a =>
+    `<button type="button" data-cod="${esc(a.c)}"><b>${esc(a.c)}</b> ${esc(a.n)}</button>`
+  ).join('');
+}
+document.getElementById('sugerencias').addEventListener('click', (ev)=>{
+  const b = ev.target.closest('button[data-cod]');
+  if(!b) return;
+  inputCodigo.value = b.dataset.cod;
+  evaluarCodigo();
+});
+
+function renderArbolInfo(){
+  const cont = document.getElementById('arbol-info');
+  const txt  = inputCodigo.value.trim();
+  const predio = predioElegido();
+
+  if(arbolManual){
+    cont.innerHTML = `
+      <div class="arbol-card duda">
+        <div class="nom">${esc(arbolManual.n)}</div>
+        <div class="cientifico">${esc(arbolManual.s)}</div>
+        <div class="datos"><span>Placa ${esc(arbolManual.codigo)}</span><span>${esc(arbolManual.f)}</span></div>
+        <div class="aviso">
+          <span class="pill warn">Árbol nuevo</span>
+          <span>No está en la base de Solano. Quedará marcado para revisar en oficina.</span>
+          <button type="button" class="btn ghost small" id="btn-cancelar-manual">Cancelar</button>
+        </div>
+      </div>`;
+    document.getElementById('btn-cancelar-manual').addEventListener('click', ()=>{
+      arbolManual = null; inputCodigo.value = ''; evaluarCodigo();
+    });
+    return;
+  }
+
+  if(!txt){ cont.innerHTML = ''; return; }
+
+  const a = arbolPorCodigo(txt);
+
+  if(!a){
+    // Todavía puede ser un código a medio escribir: solo se llama error cuando
+    // ya tiene al menos 3 dígitos, que es el largo de las placas de Solano.
+    if(txt.length < 3){ cont.innerHTML = ''; return; }
+    cont.innerHTML = `
+      <div class="arbol-card mal">
+        <div class="nom">El código ${esc(txt)} no existe en Solano</div>
+        <div class="datos">Las placas registradas van de 601 a 874.</div>
+        <div class="aviso">
+          <span>Revisa la placa. Si de verdad es un árbol nuevo o con placa recién puesta:</span>
+          <button type="button" class="btn ghost small" id="btn-arbol-nuevo">Registrarlo como árbol nuevo</button>
+        </div>
+      </div>`;
+    document.getElementById('btn-arbol-nuevo').addEventListener('click', abrirArbolNuevo);
+    return;
+  }
+
+  const otroPredio = predio && a.p !== predio;
+  const yaEsteMes  = monitoreoDelMes(a.c, document.getElementById('fecha').value);
+  const dist       = (ultimaPosicion && a.lat != null)
+    ? distanciaM(ultimaPosicion.latitud, ultimaPosicion.longitud, a.lat, a.lon)
+    : null;
+  const lejos = dist !== null && dist > 150;
+
+  const clase = (otroPredio || lejos) ? 'duda' : 'ok';
+  let avisos = '';
+
+  if(otroPredio){
+    avisos += `
+      <div class="aviso">
+        <span class="pill warn">Otro predio</span>
+        <span>El árbol ${esc(a.c)} está registrado en <b>${esc(a.p)}</b>, no en ${esc(predio)}.</span>
+        <button type="button" class="btn ghost small" id="btn-corregir-predio">Cambiar el predio a ${esc(a.p)}</button>
+      </div>`;
+  }
+  if(lejos){
+    avisos += `
+      <div class="aviso">
+        <span class="pill warn">A ${Math.round(dist)} m</span>
+        <span>Estás lejos de donde se registró este árbol. Verifica la placa antes de guardar.</span>
+      </div>`;
+  }else if(dist !== null){
+    avisos += `<div class="aviso"><span class="pill ok">A ${Math.round(dist)} m</span>
+      <span>coincide con la coordenada registrada del árbol.</span></div>`;
+  }
+  if(yaEsteMes){
+    avisos += `
+      <div class="aviso">
+        <span class="pill warn">Ya monitoreado</span>
+        <span>Este árbol ya tiene un registro del ${esc(yaEsteMes.fecha)}. Si es corrección, guarda igual.</span>
+      </div>`;
+  }
+  if(a.lat == null){
+    avisos += `<div class="aviso"><span class="pill warn">Sin coordenada</span>
+      <span>Este árbol no tiene punto en la base; el GPS de hoy servirá para completarlo.</span></div>`;
+  }
+
+  cont.innerHTML = `
+    <div class="arbol-card ${clase}">
+      <div class="nom">${esc(a.n)}</div>
+      <div class="cientifico">${esc(a.s)}</div>
+      <div class="datos">
+        <span>Placa <b>${esc(a.c)}</b></span>
+        <span>${esc(a.f)}</span>
+        <span>${esc(a.p)}</span>
+        ${a.d != null ? `<span>DAP ${a.d} cm</span>` : ''}
+        ${a.h != null ? `<span>Altura ${a.h} m</span>` : ''}
+      </div>
+      ${avisos}
+    </div>`;
+
+  const btnPredio = document.getElementById('btn-corregir-predio');
+  if(btnPredio) btnPredio.addEventListener('click', ()=>{
+    document.getElementById('predio').value = a.p;
+    prefs.predio = a.p; guardarPrefs();
+    evaluarCodigo();
+  });
+}
+
+function evaluarCodigo(){
+  const txt = inputCodigo.value.trim();
+  arbolElegido = arbolManual ? null : arbolPorCodigo(txt);
+  renderSugerencias();
+  renderArbolInfo();
+  actualizarBotonGuardar();
+  guardarBorrador();
+}
+
+/* Árbol con placa que no está en la base: pasa, pero por una puerta estrecha.
+   La especie se elige de las 92 de Solano en un desplegable — tampoco aquí se
+   escribe un nombre a mano — y el registro queda marcado `enBase:false` para
+   que en oficina se sepa que hay que revisarlo. */
+function abrirArbolNuevo(){
+  const codigo = inputCodigo.value.trim();
+  document.getElementById('arbol-info').innerHTML = `
+    <div class="arbol-card duda">
+      <div class="nom">Árbol nuevo con placa ${esc(codigo)}</div>
+      <div class="hint" style="margin-top:6px;">
+        Elige la especie de la lista. Si de verdad no está entre estas 92, no la inventes:
+        anótalo en observaciones y avisa en oficina.
+      </div>
+      <div style="margin-top:10px;">
+        <select id="especie-manual">
+          <option value="">Selecciona la especie…</option>
+          ${ESPECIES.map((e,i) => `<option value="${i}">${esc(e.n)} — ${esc(e.s)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="aviso">
+        <button type="button" class="btn small" id="btn-confirmar-manual">Usar esta especie</button>
+        <button type="button" class="btn ghost small" id="btn-cancelar-nuevo">Cancelar</button>
+      </div>
+    </div>`;
+
+  document.getElementById('btn-confirmar-manual').addEventListener('click', ()=>{
+    const i = parseInt(document.getElementById('especie-manual').value, 10);
+    if(!(i >= 0 && i < ESPECIES.length)){ alert('Falta elegir la especie.'); return; }
+    const e = ESPECIES[i];
+    arbolManual  = {codigo, n:e.n, s:e.s, f:e.f};
+    arbolElegido = null;
+    renderSugerencias();
+    renderArbolInfo();
+    actualizarBotonGuardar();
+    guardarBorrador();
+  });
+  document.getElementById('btn-cancelar-nuevo').addEventListener('click', ()=>{
+    arbolManual = null; inputCodigo.value = ''; evaluarCodigo();
+  });
+}
+
+inputCodigo.addEventListener('input', ()=>{
+  // Las placas de Solano son solo dígitos, salvo el caso histórico "767a".
+  inputCodigo.value = inputCodigo.value.replace(/[^0-9a-zA-Z]/g,'').toLowerCase();
+  if(arbolManual) arbolManual = null;
+  evaluarCodigo();
+});
+
+document.getElementById('predio').addEventListener('change', (ev)=>{
+  prefs.predio = ev.target.value; guardarPrefs();
+  evaluarCodigo();
+});
+document.getElementById('fecha').addEventListener('change', ()=>{ renderArbolInfo(); guardarBorrador(); });
+document.getElementById('monitor').addEventListener('change', (ev)=>{
+  prefs.monitor = ev.target.value; guardarPrefs(); guardarBorrador();
+});
+document.getElementById('clima').addEventListener('change', (ev)=>{
+  prefs.clima = ev.target.value; guardarPrefs(); guardarBorrador();
+});
+
+/* ---------- Estado fitosanitario ----------
+   Sano es excluyente: un árbol no puede estar sano y con hongos a la vez. */
+document.getElementById('fitosanitario').addEventListener('change', (ev)=>{
+  const cajas = Array.from(document.querySelectorAll('#fitosanitario input'));
+  if(ev.target.value === 'Sano' && ev.target.checked){
+    cajas.forEach(c => { if(c.value !== 'Sano') c.checked = false; });
+  }else if(ev.target.checked){
+    const sano = cajas.find(c => c.value === 'Sano');
+    if(sano) sano.checked = false;
+  }
+  actualizarBotonGuardar();
+  guardarBorrador();
+});
+function fitosanitarioElegido(){
+  return Array.from(document.querySelectorAll('#fitosanitario input:checked')).map(c => c.value);
+}
+
+// ---------- Cambio de placa ----------
+document.getElementById('cambio-placa').addEventListener('change', (ev)=>{
+  document.getElementById('placa-anterior-caja').classList.toggle('oculto', !ev.target.checked);
+  guardarBorrador();
+});
+
+// ---------- Chips de observaciones ----------
+document.getElementById('chips-obs').innerHTML =
+  OBS_FRECUENTES.map(o => `<button type="button" data-obs="${esc(o)}">${esc(o)}</button>`).join('');
+document.getElementById('chips-obs').addEventListener('click', (ev)=>{
+  const b = ev.target.closest('button[data-obs]');
+  if(!b) return;
+  const ta = document.getElementById('observaciones');
+  const actual = ta.value.trim();
+  const nueva = b.dataset.obs;
+  if(actual.split('. ').map(s=>s.trim()).includes(nueva)) return;   // no repetir la misma nota
+  ta.value = actual ? `${actual}. ${nueva}` : nueva;
+  guardarBorrador();
+});
+document.getElementById('observaciones').addEventListener('input', guardarBorrador);
+
+/* ---------- Borrador del formulario ----------
+   Un monitoreo se llena de pie en el monte. Si la app se cierra sola, si entra
+   una llamada o si el celular se queda sin batería a mitad, lo escrito tiene
+   que seguir ahí al volver. */
+let borradorTimer = null;
+function escribirBorrador(){
+  clearTimeout(borradorTimer);
+  const b = {
+    predio:        document.getElementById('predio').value,
+    monitor:       document.getElementById('monitor').value,
+    fecha:         document.getElementById('fecha').value,
+    clima:         document.getElementById('clima').value,
+    codigo:        inputCodigo.value,
+    manual:        arbolManual,
+    fenologia:     fenologiaActual,
+    fitosanitario: fitosanitarioElegido(),
+    cambioPlaca:   document.getElementById('cambio-placa').checked,
+    placaAnterior: document.getElementById('placa-anterior').value,
+    observaciones: document.getElementById('observaciones').value
+  };
+  const vacio = !b.codigo && !b.observaciones && !b.fitosanitario.length &&
+                FENOFASES.every(({k}) => b.fenologia[k] === null);
+  if(vacio) lsEscribir(LS_BORRADOR, null); else lsEscribir(LS_BORRADOR, b);
+}
+function guardarBorrador(){
+  clearTimeout(borradorTimer);
+  borradorTimer = setTimeout(escribirBorrador, 400);
+}
+function limpiarBorrador(){ lsEscribir(LS_BORRADOR, null); }
+function restaurarBorrador(){
+  const b = lsLeer(LS_BORRADOR, null);
+  if(!b) return;
+  if(b.predio)  document.getElementById('predio').value  = b.predio;
+  if(b.monitor) document.getElementById('monitor').value = b.monitor;
+  if(b.fecha)   document.getElementById('fecha').value   = b.fecha;
+  if(b.clima)   document.getElementById('clima').value   = b.clima;
+  if(b.observaciones) document.getElementById('observaciones').value = b.observaciones;
+  if(b.fenologia) fenologiaActual = normalizarFenologia(b.fenologia);
+  (b.fitosanitario || []).forEach(v => {
+    const c = document.querySelector(`#fitosanitario input[value="${CSS.escape(v)}"]`);
+    if(c) c.checked = true;
+  });
+  if(b.cambioPlaca){
+    document.getElementById('cambio-placa').checked = true;
+    document.getElementById('placa-anterior-caja').classList.remove('oculto');
+    document.getElementById('placa-anterior').value = b.placaAnterior || '';
+  }
+  arbolManual = b.manual || null;
+  if(b.codigo) inputCodigo.value = b.codigo;
+  renderFenologia();
+  evaluarCodigo();
+}
+
+/* ---------- Motor GPS ----------
+   Escucha mientras la pestaña Registrar está a la vista, para que al guardar ya
+   haya posición fijada. Aquí el GPS hace un trabajo extra que en aves no hacía:
+   comparar dónde estás con dónde quedó registrado el árbol que digitaste. */
+let ultimaPosicion = null;
+let estadoGps = 'inactivo';
+let watchGps  = null;
+
+function gpsDisponible(){
+  if(!('geolocation' in navigator)) return 'no_soportado';
+  const local = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  if(!window.isSecureContext && !local) return 'no_seguro';
+  return 'ok';
+}
+function textoGps(estado){
+  switch(estado){
+    case 'no_soportado': return 'Este navegador no entrega ubicación.';
+    case 'no_seguro':    return 'El navegador bloquea el GPS porque la app se abrió por http://. Solo funciona en https://.';
+    case 'denegado':     return 'Permiso de ubicación denegado. Actívalo en los ajustes del navegador para este sitio y toca Reintentar.';
+    case 'sin_senal':    return 'Sin señal GPS todavía. Bajo dosel cerrado puede tardar. Se puede guardar igual.';
+    case 'lento':        return 'El GPS está tardando. Sal a cielo abierto un momento o guarda sin punto.';
+    case 'buscando':     return 'Buscando señal GPS…';
+    default:             return '';
+  }
+}
+function iniciarGps(){
+  const d = gpsDisponible();
+  if(d !== 'ok'){ estadoGps = d; renderGps(); return; }
+  if(watchGps !== null) return;
+  if(estadoGps !== 'ok') estadoGps = 'buscando';
+  renderGps();
+  watchGps = navigator.geolocation.watchPosition(
+    pos => {
+      const c = pos.coords;
+      ultimaPosicion = {
+        latitud:       c.latitude,
+        longitud:      c.longitude,
+        precisionM:    c.accuracy         != null ? Math.round(c.accuracy) : null,
+        altitudM:      c.altitude         != null ? Math.round(c.altitude) : null,
+        precisionAltM: c.altitudeAccuracy != null ? Math.round(c.altitudeAccuracy) : null,
+        ts:            pos.timestamp || Date.now()
+      };
+      estadoGps = 'ok';
+      renderGps();
+      renderArbolInfo();   // la distancia al árbol cambia con cada fix
+    },
+    err => {
+      estadoGps = err.code === 1 ? 'denegado' : err.code === 3 ? 'lento' : 'sin_senal';
+      renderGps();
+    },
+    {enableHighAccuracy:true, maximumAge:10000, timeout:25000}
+  );
+}
+function detenerGps(){
+  if(watchGps !== null){ navigator.geolocation.clearWatch(watchGps); watchGps = null; }
+}
+function edadFix(){
+  return ultimaPosicion ? Math.round((Date.now() - ultimaPosicion.ts)/1000) : null;
+}
+function renderGps(){
+  const caja = document.getElementById('gps-caja');
+  if(!caja) return;
+  const malo = ['denegado','no_seguro','no_soportado'].includes(estadoGps);
+  const luz  = estadoGps === 'ok' ? 'ok' : (malo ? 'mal' : 'buscando');
+
+  if(estadoGps === 'ok' && ultimaPosicion){
+    const s = edadFix();
+    const edad = s < 60 ? `hace ${s} s` : `hace ${Math.round(s/60)} min`;
+    const p = ultimaPosicion.precisionM;
+    caja.innerHTML = `
+      <div class="titulo"><span class="gps-luz ok"></span> Ubicación lista
+        ${p != null ? `<span class="pill ${p <= 20 ? 'ok' : 'warn'}">±${p} m</span>` : ''}
+        <span class="hint" style="margin:0;">${esc(edad)}</span></div>
+      <div class="gps-coords mono">${ultimaPosicion.latitud.toFixed(6)}, ${ultimaPosicion.longitud.toFixed(6)}${
+        ultimaPosicion.altitudM != null ? ` · ${ultimaPosicion.altitudM} m s.n.m.` : ''}</div>
+      <div class="hint">Bajo dosel cerrado ±40 m es normal. Se guarda la precisión para poder descartar después los puntos malos.</div>`;
+    return;
+  }
+
+  caja.innerHTML = `
+    <div class="titulo"><span class="gps-luz ${luz}"></span> ${estadoGps === 'buscando' ? 'Buscando señal GPS…' : 'Sin ubicación'}</div>
+    <div class="hint">${esc(textoGps(estadoGps))}</div>
+    ${malo || estadoGps === 'sin_senal' || estadoGps === 'lento'
+      ? '<button type="button" class="btn ghost small" id="btn-gps-reintentar" style="margin-top:8px;">Reintentar GPS</button>' : ''}`;
+
+  const btn = document.getElementById('btn-gps-reintentar');
+  if(btn) btn.addEventListener('click', ()=>{ detenerGps(); estadoGps = 'buscando'; renderGps(); iniciarGps(); });
+}
+document.addEventListener('visibilitychange', ()=>{
+  const enRegistro = !document.getElementById('tab-registro').classList.contains('oculto');
+  if(document.hidden) detenerGps();
+  else if(enRegistro) iniciarGps();
+});
+
+// ---------- Guardar ----------
+function listoParaGuardar(){
+  return !!(predioElegido() && document.getElementById('monitor').value &&
+            document.getElementById('fecha').value && document.getElementById('clima').value &&
+            (arbolElegido || arbolManual) && fenologiaCompleta() && fitosanitarioElegido().length);
+}
+function actualizarBotonGuardar(){
+  document.getElementById('btn-guardar').disabled = !listoParaGuardar();
+}
+
+document.getElementById('form-monitoreo').addEventListener('submit', (ev)=>{
+  ev.preventDefault();
+
+  if(!(arbolElegido || arbolManual)){
+    alert('Falta el árbol. Digita el código de la placa y espera a que aparezca la especie.');
+    return;
+  }
+  if(!fenologiaCompleta()){
+    alert('Faltan fenofases por responder:\n\n• ' + fenologiaFaltante().join('\n• ') +
+          '\n\nSi no se observó ninguna, usa el botón «Marcar todo en 0».');
+    return;
+  }
+  const fito = fitosanitarioElegido();
+  if(!fito.length){ alert('Falta el estado fitosanitario.'); return; }
+
+  const a = arbolElegido;
+  const cambio = document.getElementById('cambio-placa').checked;
+  const anterior = document.getElementById('placa-anterior').value.trim();
+  if(cambio && !anterior){
+    alert('Marcaste cambio de placa: escribe el código de la placa anterior.');
+    return;
+  }
+
+  const reg = normalizarRegistro({
+    fecha:               document.getElementById('fecha').value,
+    predio:              predioElegido(),
+    codigoArbol:         a ? a.c : arbolManual.codigo,
+    nombreComun:         a ? a.n : arbolManual.n,
+    nombreCientifico:    a ? a.s : arbolManual.s,
+    familia:             a ? a.f : arbolManual.f,
+    enBase:              !!a,
+    clima:               document.getElementById('clima').value,
+    fenologia:           fenologiaActual,
+    estadoFitosanitario: fito,
+    cambioPlaca:         cambio,
+    placaAnterior:       cambio ? anterior : '',
+    observaciones:       document.getElementById('observaciones').value.trim(),
+    monitor:             document.getElementById('monitor').value
+  });
+
+  monitoreos.push(reg);
+  if(!persistirMonitoreos()){
+    monitoreos.pop();
+    alert('NO se pudo guardar: ' + (ultimoErrorAlmacen || '') + '\n\nEl formulario se deja como está para que no se pierda lo escrito.');
+    return;
+  }
+
+  if(estadoGps === 'ok' && ultimaPosicion){
+    guardarPunto(reg.id, {
+      latitud: ultimaPosicion.latitud, longitud: ultimaPosicion.longitud,
+      precisionM: ultimaPosicion.precisionM,
+      altitudM: ultimaPosicion.altitudM, precisionAltM: ultimaPosicion.precisionAltM,
+      capturadoEn: new Date(ultimaPosicion.ts).toISOString()
+    });
+  }
+
+  // Se conservan predio, monitor, fecha y clima: el siguiente árbol es del
+  // mismo recorrido, el mismo día y con el mismo clima.
+  inputCodigo.value = '';
+  arbolElegido = null; arbolManual = null;
+  fenologiaActual = normalizarFenologia({});
+  document.querySelectorAll('#fitosanitario input').forEach(c => c.checked = false);
+  document.getElementById('cambio-placa').checked = false;
+  document.getElementById('placa-anterior').value = '';
+  document.getElementById('placa-anterior-caja').classList.add('oculto');
+  document.getElementById('observaciones').value = '';
+  renderFenologia();
+  evaluarCodigo();
+  limpiarBorrador();
+
+  const pendientes = pendientesDelPredio(reg.predio, reg.fecha.slice(0,7));
+  toast(`Guardado: ${reg.codigoArbol} — ${reg.nombreComun}.` +
+        (pendientes ? ` Faltan ${pendientes} árboles en este predio.` : ' Predio completo este mes.'));
+  inputCodigo.focus();
+});
+
+/* =========================================================================
+   RECORRIDO — qué falta por monitorear en este predio, este mes
+   -------------------------------------------------------------------------
+   Es la forma de no digitar el código: se toca el árbol de la lista. También
+   es el control de avance del mes, que es lo que se reporta.
+   ========================================================================= */
+function pendientesDelPredio(predio, mes){
+  const del = ARBOLES_POR_PREDIO.get(predio) || [];
+  const hechos = new Set(activos().filter(r => (r.fecha||'').slice(0,7) === mes).map(r => r.codigoArbol));
+  return del.filter(a => !hechos.has(a.c)).length;
+}
+
+function renderRecorrido(){
+  const predio = document.getElementById('recorrido-predio').value;
+  const mes    = document.getElementById('recorrido-mes').value;
+  const busca  = normalizar(document.getElementById('recorrido-buscar').value);
+  const resumen = document.getElementById('recorrido-resumen');
+  const lista   = document.getElementById('recorrido-lista');
+
+  if(!predio){
+    resumen.innerHTML = '';
+    lista.innerHTML = '<div class="vacio">Elige un predio para ver sus árboles.</div>';
+    return;
+  }
+
+  const del = (ARBOLES_POR_PREDIO.get(predio) || []).slice();
+  const hechos = new Map();
+  activos().filter(r => (r.fecha||'').slice(0,7) === mes)
+           .forEach(r => hechos.set(r.codigoArbol, r));
+
+  const listos = del.filter(a => hechos.has(a.c)).length;
+  const pct = del.length ? Math.round(listos/del.length*100) : 0;
+  const nombreMes = mes ? `${MESES[Number(mes.slice(5,7))-1]} ${mes.slice(0,4)}` : 'el mes elegido';
+
+  resumen.innerHTML = del.length ? `
+    <div><b>${listos}</b> de <b>${del.length}</b> árboles monitoreados en ${esc(nombreMes)}</div>
+    <div class="progreso"><div style="width:${pct}%"></div></div>
+    <div class="hint">${del.length - listos} pendientes.</div>
+  ` : '<div class="vacio">Este predio todavía no tiene árboles en la base de Solano.</div>';
+
+  const visibles = del.filter(a => !busca ||
+    a.c.includes(busca) || normalizar(a.n).includes(busca) || normalizar(a.s).includes(busca));
+
+  lista.innerHTML = visibles.length ? visibles.map(a => {
+    const r = hechos.get(a.c);
+    return `
+      <div class="arbol-fila">
+        <div class="cod">${esc(a.c)}</div>
+        <div class="nm">${esc(a.n)}<small>${esc(a.s)}</small></div>
+        <div>${r
+          ? `<span class="pill ok">✓ ${esc(r.fecha)}</span>`
+          : '<span class="pill warn">pendiente</span>'}</div>
+        <button type="button" class="btn ghost small" data-ir="${esc(a.c)}">${r ? 'Repetir' : 'Registrar'}</button>
+      </div>`;
+  }).join('') : '<div class="vacio">Ningún árbol coincide con la búsqueda.</div>';
+}
+
+document.getElementById('recorrido-lista').addEventListener('click', (ev)=>{
+  const b = ev.target.closest('button[data-ir]');
+  if(!b) return;
+  const predio = document.getElementById('recorrido-predio').value;
+  document.getElementById('predio').value = predio;
+  prefs.predio = predio; guardarPrefs();
+  inputCodigo.value = b.dataset.ir;
+  irA('registro');
+  evaluarCodigo();
+  window.scrollTo({top:0, behavior:'smooth'});
+});
+['recorrido-predio','recorrido-mes','recorrido-buscar'].forEach(id => {
+  document.getElementById(id).addEventListener('input', renderRecorrido);
+  document.getElementById(id).addEventListener('change', renderRecorrido);
+});
+
+// ---------- Historial ----------
+function renderHistorial(){
+  const tbody = document.querySelector('#tabla-historial tbody');
+  const vacio = document.getElementById('historial-vacio');
+  const fPredio = document.getElementById('filtro-predio').value;
+  const fTexto  = normalizar(document.getElementById('filtro-texto').value);
+
+  const lista = activos()
+    .filter(r => !fPredio || r.predio === fPredio)
+    .filter(r => !fTexto || r.codigoArbol.includes(fTexto) ||
+                 normalizar(r.nombreComun).includes(fTexto) ||
+                 normalizar(r.nombreCientifico).includes(fTexto))
+    .sort((a,b) => (b.fecha || '').localeCompare(a.fecha || '') ||
+                   (b.creadoEn || '').localeCompare(a.creadoEn || ''));
+
+  vacio.classList.toggle('oculto', activos().length > 0);
+
+  tbody.innerHTML = lista.map(r => {
+    const p = puntoDe(r.id);
+    return `
+      <tr>
+        <td>${esc(r.fecha)}</td>
+        <td class="mono"><b>${esc(r.codigoArbol)}</b>${r.enBase ? '' : ' <span class="pill warn">nuevo</span>'}</td>
+        <td>${esc(r.nombreComun)}<br><span class="cientifico hint" style="margin:0;">${esc(r.nombreCientifico)}</span></td>
+        <td>${esc(r.predio)}</td>
+        <td>${esc(resumenFenologia(r.fenologia))}</td>
+        <td>${(r.estadoFitosanitario||[]).map(e => `<span class="badge">${esc(e)}</span>`).join('')}
+            ${r.cambioPlaca ? `<div class="hint">placa anterior: ${esc(r.placaAnterior)}</div>` : ''}
+            ${r.observaciones ? `<div class="hint">${esc(r.observaciones)}</div>` : ''}</td>
+        <td>${p
+          ? `<span class="mono" style="font-size:.75rem;">${p.latitud.toFixed(5)}<br>${p.longitud.toFixed(5)}</span>${
+              p.precisionM != null ? `<div class="hint">±${p.precisionM} m</div>` : ''}`
+          : `<button type="button" class="btn ghost small" data-gps="${r.id}">Tomar GPS</button>`}</td>
+        <td><button type="button" class="cerrar" data-del="${r.id}" title="Eliminar">&#10005;</button></td>
+      </tr>`;
+  }).join('');
+}
+document.querySelector('#tabla-historial tbody').addEventListener('click', (ev)=>{
+  const del = ev.target.closest('[data-del]');
+  if(del){
+    const r = monitoreos.find(x => x.id === del.dataset.del);
+    if(!r) return;
+    if(!confirm(`¿Eliminar el monitoreo del árbol ${r.codigoArbol} del ${r.fecha}?`)) return;
+    r.eliminado = true; r.actualizadoEn = ahora(); r.sincronizado = false;
+    persistirMonitoreos();
+    renderHistorial(); renderEstadoAlmacen();
+    return;
+  }
+  const gps = ev.target.closest('[data-gps]');
+  if(gps) tomarGpsPara(gps.dataset.gps);
+});
+function tomarGpsPara(monitoreoId){
+  const d = gpsDisponible();
+  if(d !== 'ok'){ alert(textoGps(d)); return; }
+  if(!confirm('Se guardará la ubicación ACTUAL del dispositivo para este monitoreo.\n\nSolo tiene sentido si sigues junto al árbol. ¿Continuar?')) return;
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const c = pos.coords;
+      guardarPunto(monitoreoId, {
+        latitud: c.latitude, longitud: c.longitude,
+        precisionM:    c.accuracy         != null ? Math.round(c.accuracy) : null,
+        altitudM:      c.altitude         != null ? Math.round(c.altitude) : null,
+        precisionAltM: c.altitudeAccuracy != null ? Math.round(c.altitudeAccuracy) : null,
+        capturadoEn: new Date(pos.timestamp || Date.now()).toISOString()
+      });
+      renderHistorial(); renderEstadoAlmacen();
+      toast('Punto GPS guardado.');
+    },
+    err => alert('No se pudo obtener la ubicación: ' + (err.message || 'error desconocido')),
+    {enableHighAccuracy:true, timeout:25000, maximumAge:0}
+  );
+}
+['filtro-predio','filtro-texto'].forEach(id =>
+  document.getElementById(id).addEventListener('input', renderHistorial));
+document.getElementById('btn-limpiar-filtros').addEventListener('click', ()=>{
+  document.getElementById('filtro-predio').value = '';
+  document.getElementById('filtro-texto').value = '';
+  renderHistorial();
+});
+
+// ---------- Descarga de archivos ----------
+function descargar(blob, nombre){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nombre;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=> URL.revokeObjectURL(url), 4000);
+}
+function aCSV(encabezados, filas){
+  return [encabezados, ...filas].map(fila =>
+    fila.map(v => `"${(v ?? '').toString().replace(/"/g,'""')}"`).join(',')
+  ).join('\r\n');
+}
+
+// ---------- Exportar CSV ----------
+document.getElementById('btn-exportar-csv').addEventListener('click', ()=>{
+  const lista = activos();
+  if(!lista.length){ alert('No hay datos para exportar.'); return; }
+  const encabezados = [
+    'id','Fecha','Predio','Código del árbol','Nombre común','Nombre científico','Familia',
+    'Está en la base','Clima',
+    ...FENOFASES.map(f => f.n + ' (%)'),
+    'Estado fitosanitario','Cambio de placa','Placa anterior','Observaciones','Registra',
+    'Latitud','Longitud','Precisión GPS (m)','Altitud (m)','GPS tomado en','Creado en','Dispositivo'
+  ];
+  const filas = lista.map(r => {
+    const p = puntoDe(r.id);
+    return [
+      r.id, r.fecha, r.predio, r.codigoArbol, r.nombreComun, r.nombreCientifico, r.familia,
+      r.enBase ? 'sí' : 'no', r.clima,
+      ...FENOFASES.map(f => r.fenologia[f.k]),
+      (r.estadoFitosanitario||[]).join('|'), r.cambioPlaca ? 'sí' : 'no', r.placaAnterior,
+      r.observaciones, r.monitor,
+      p ? p.latitud : '', p ? p.longitud : '', p ? p.precisionM : '', p ? p.altitudM : '',
+      p ? p.capturadoEn : '', r.creadoEn, r.dispositivo
+    ];
+  });
+  descargar(new Blob(['﻿' + aCSV(encabezados, filas)], {type:'text/csv;charset=utf-8;'}),
+            `monitoreo_semilleros_solano_${hoyISO()}.csv`);
+});
+
+/* ---------- Exportar GeoJSON ----------
+   La coordenada sale del GPS del monitoreo; si no lo hubo, se usa la del árbol
+   en la base. `origen_coordenada` dice cuál de las dos es, para no mezclar. */
+document.getElementById('btn-exportar-geojson').addEventListener('click', ()=>{
+  const feats = activos().map(r => {
+    const p = puntoDe(r.id);
+    const a = arbolPorCodigo(r.codigoArbol);
+    const lat = p ? p.latitud  : (a && a.lat != null ? a.lat : null);
+    const lon = p ? p.longitud : (a && a.lon != null ? a.lon : null);
+    if(lat === null || lon === null) return null;
+    const props = {
+      monitoreo_id: r.id, fecha: r.fecha, predio: r.predio,
+      codigo_arbol: r.codigoArbol, nombre_comun: r.nombreComun,
+      nombre_cientifico: r.nombreCientifico, familia: r.familia,
+      clima: r.clima,
+      estado_fitosanitario: (r.estadoFitosanitario||[]).join('|'),
+      observaciones: r.observaciones, registra: r.monitor,
+      origen_coordenada: p ? 'gps' : 'base',
+      precision_m: p ? p.precisionM : null,
+      dispositivo: r.dispositivo
+    };
+    FENOFASES.forEach(f => { props['feno_' + f.k] = r.fenologia[f.k]; });
+    return {type:'Feature', geometry:{type:'Point', coordinates:[lon, lat]}, properties: props};
+  }).filter(Boolean);
+
+  if(!feats.length){ alert('Todavía no hay monitoreos con coordenada.'); return; }
+  const fc = {
+    type:'FeatureCollection', name:'monitoreo_semilleros_solano',
+    crs:{type:'name', properties:{name:'urn:ogc:def:crs:OGC:1.3:CRS84'}},   // WGS84 lon/lat = EPSG:4326
+    features: feats
+  };
+  descargar(new Blob([JSON.stringify(fc, null, 2)], {type:'application/geo+json'}),
+            `monitoreo_semilleros_solano_${hoyISO()}.geojson`);
+});
+
+/* =========================================================================
+   CALENDARIO FENOLÓGICO
+   -------------------------------------------------------------------------
+   Filas = las nueve fenofases · columnas = los doce meses.
+   Cada celda es el PROMEDIO del % de cobertura de los monitoreos de ese mes,
+   que es la forma estándar de leer un calendario fenológico: dice en qué mes
+   esperar flor y en qué mes esperar fruto maduro, que es cuando se colecta.
+   Un mes sin ningún monitoreo se raya: no es un cero, es que nadie fue.
+   ========================================================================= */
+function aniosConDatos(){
+  const a = new Set(activos().map(r => (r.fecha||'').slice(0,4)).filter(x => /^\d{4}$/.test(x)));
+  if(!a.size) a.add(String(new Date().getFullYear()));
+  return Array.from(a).sort().reverse();
+}
+
+function opcionesAgrupacion(modo){
+  const lista = activos();
+  if(modo === 'especie'){
+    const m = new Map();
+    lista.forEach(r => { if(r.nombreComun) m.set(r.nombreComun, r.nombreCientifico); });
+    return Array.from(m.entries()).sort((a,b)=>a[0].localeCompare(b[0],'es'))
+      .map(([n,s]) => ({valor:n, texto: s ? `${n} — ${s}` : n}));
+  }
+  if(modo === 'predio'){
+    return Array.from(new Set(lista.map(r => r.predio))).filter(Boolean).sort()
+      .map(p => ({valor:p, texto:p}));
+  }
+  if(modo === 'arbol'){
+    const m = new Map();
+    lista.forEach(r => m.set(r.codigoArbol, r));
+    return Array.from(m.entries()).sort((a,b)=>a[0].localeCompare(b[0],'es',{numeric:true}))
+      .map(([c,r]) => ({valor:c, texto:`${c} — ${r.nombreComun}`}));
+  }
+  return [];
+}
+
+function pintarSelectorCalendario(){
+  const modo = document.getElementById('cal-agrupacion').value;
+  const sel  = document.getElementById('cal-valor');
+  const ops  = opcionesAgrupacion(modo);
+  sel.classList.toggle('oculto', modo === 'todo');
+  const previo = sel.value;
+  sel.innerHTML = ops.map(o => `<option value="${esc(o.valor)}">${esc(o.texto)}</option>`).join('');
+  if(ops.some(o => o.valor === previo)) sel.value = previo;
+
+  const selA = document.getElementById('cal-anio');
+  const previoA = selA.value;
+  const anios = aniosConDatos();
+  selA.innerHTML = anios.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('');
+  if(anios.includes(previoA)) selA.value = previoA;
+}
+
+function registrosDelCalendario(){
+  const modo = document.getElementById('cal-agrupacion').value;
+  const val  = document.getElementById('cal-valor').value;
+  const anio = document.getElementById('cal-anio').value;
+  return activos().filter(r => (r.fecha||'').slice(0,4) === anio).filter(r => {
+    if(modo === 'todo')    return true;
+    if(modo === 'especie') return r.nombreComun === val;
+    if(modo === 'predio')  return r.predio === val;
+    if(modo === 'arbol')   return r.codigoArbol === val;
+    return true;
+  });
+}
+
+// Matriz fenofase × mes con el promedio y el número de observaciones.
+function matrizCalendario(lista){
+  const m = FENOFASES.map(() => Array.from({length:12}, () => ({suma:0, n:0})));
+  const observadosPorMes = Array.from({length:12}, () => 0);
+  lista.forEach(r => {
+    const mes = Number((r.fecha||'').slice(5,7)) - 1;
+    if(!(mes >= 0 && mes < 12)) return;
+    observadosPorMes[mes]++;
+    FENOFASES.forEach((f, i) => {
+      const v = r.fenologia[f.k];
+      if(v === null) return;
+      m[i][mes].suma += v;
+      m[i][mes].n++;
+    });
+  });
+  return {m, observadosPorMes};
+}
+
+function nivelCelda(prom){
+  if(prom === null) return '';
+  if(prom === 0)   return '';
+  if(prom <= 25)   return 'n1';
+  if(prom <= 50)   return 'n2';
+  if(prom <= 75)   return 'n3';
+  return 'n4';
+}
+
+function renderCalendario(){
+  pintarSelectorCalendario();
+  const cont = document.getElementById('calendario');
+  const lista = registrosDelCalendario();
+
+  if(!lista.length){
+    cont.innerHTML = `
+      <div class="vacio">
+        Todavía no hay monitoreos con los que armar el calendario.
+      </div>
+      <div class="hint">
+        El calendario se llena solo a medida que se registran monitoreos: cada celda es el
+        promedio del % de copa de esa fenofase en ese mes. Para ver aquí lo ya levantado en
+        Kobo hasta agosto, hay que importarlo una vez desde Configuración → Importar respaldo.
+      </div>`;
+    return;
+  }
+
+  const {m, observadosPorMes} = matrizCalendario(lista);
+  const arboles = new Set(lista.map(r => r.codigoArbol)).size;
+
+  const filas = FENOFASES.map((f, i) => {
+    const celdas = m[i].map((c, mes) => {
+      if(!observadosPorMes[mes]) return '<td class="sindato" title="Sin monitoreos este mes">·</td>';
+      if(!c.n) return `<td title="${esc(f.n)} — no se observó">–</td>`;
+      const prom = Math.round(c.suma / c.n);
+      return `<td class="${nivelCelda(prom)}" title="${esc(f.n)} en ${MESES[mes]}: ${prom} % promedio de ${c.n} observación(es)">${prom}</td>`;
+    }).join('');
+    return `<tr><th class="fase">${esc(f.n)}</th>${celdas}</tr>`;
+  }).join('');
+
+  // Los meses de fruto maduro son el producto que de verdad se usa: dicen
+  // cuándo salir a colectar semilla.
+  const iMaduro = FENOFASES.findIndex(f => f.k === 'frutoMaduro');
+  const mesesColecta = m[iMaduro]
+    .map((c, mes) => (c.n && (c.suma/c.n) >= 25) ? MESES[mes] : null)
+    .filter(Boolean);
+
+  cont.innerHTML = `
+    <div class="cal-scroll">
+      <table class="cal">
+        <thead><tr><th class="fase"></th>${MESES.map(x => `<th>${x}</th>`).join('')}</tr></thead>
+        <tbody>${filas}</tbody>
+        <tfoot><tr><th class="fase">Monitoreos</th>${
+          observadosPorMes.map(n => `<td title="${n} monitoreo(s)">${n || '·'}</td>`).join('')}</tr></tfoot>
+      </table>
+    </div>
+    <div class="cal-leyenda">
+      <span>% promedio de la copa:</span>
+      <span><i style="background:#f2efe6"></i>0</span>
+      <span><i class="" style="background:#f6e7c8"></i>1–25</span>
+      <span><i style="background:#eecf94"></i>26–50</span>
+      <span><i style="background:#e1a644"></i>51–75</span>
+      <span><i style="background:#c78a2c"></i>76–100</span>
+      <span><i style="background:repeating-linear-gradient(45deg,#f4f1e8,#f4f1e8 3px,#ebe6d9 3px,#ebe6d9 6px)"></i>sin monitoreo ese mes</span>
+    </div>
+    <div class="hint" style="margin-top:10px;">
+      ${lista.length} monitoreo(s) sobre ${arboles} árbol(es).
+      ${mesesColecta.length
+        ? `<b>Fruto maduro</b> (25 % o más de la copa) en: <b>${mesesColecta.join(', ')}</b> — son los meses candidatos para colectar semilla.`
+        : 'Todavía no hay ningún mes con fruto maduro por encima del 25 %.'}
+    </div>`;
+}
+
+['cal-agrupacion','cal-valor','cal-anio'].forEach(id =>
+  document.getElementById(id).addEventListener('change', renderCalendario));
+
+document.getElementById('btn-exportar-calendario').addEventListener('click', ()=>{
+  const lista = registrosDelCalendario();
+  if(!lista.length){ alert('No hay datos para exportar.'); return; }
+  const modo = document.getElementById('cal-agrupacion').value;
+  const val  = modo === 'todo' ? 'todo' : document.getElementById('cal-valor').value;
+  const anio = document.getElementById('cal-anio').value;
+  const {m, observadosPorMes} = matrizCalendario(lista);
+  const filas = FENOFASES.map((f, i) => [
+    val, anio, f.n,
+    ...m[i].map((c, mes) => !observadosPorMes[mes] ? '' : (c.n ? Math.round(c.suma/c.n) : ''))
+  ]);
+  filas.push([val, anio, 'Monitoreos', ...observadosPorMes]);
+  descargar(new Blob(['﻿' + aCSV([modo, 'Año', 'Fenofase', ...MESES], filas)],
+            {type:'text/csv;charset=utf-8;'}),
+            `calendario_fenologico_${normalizar(val).replace(/\s+/g,'_')}_${anio}.csv`);
+});
+
+// ---------- Configuración: quiénes registran ----------
+function renderMonitores(){
+  const cont = document.getElementById('lista-monitores');
+  cont.innerHTML = monitores.map((m,i) => `
+    <div class="config-item">
+      <input type="text" data-idx="${i}" value="${esc(m)}">
+      <button type="button" class="cerrar" data-del="${i}" title="Quitar">&#10005;</button>
+    </div>`).join('');
+}
+document.getElementById('btn-add-monitor').addEventListener('click', ()=>{
+  monitores.push('');
+  renderMonitores();
+});
+document.getElementById('lista-monitores').addEventListener('click', (ev)=>{
+  const del = ev.target.closest('[data-del]');
+  if(!del) return;
+  if(monitores.length <= 1){ alert('Debe quedar al menos una persona en la lista.'); return; }
+  monitores.splice(parseInt(del.dataset.del,10), 1);
+  renderMonitores();
+});
+document.getElementById('btn-guardar-monitores').addEventListener('click', ()=>{
+  const inputs = document.querySelectorAll('#lista-monitores input[data-idx]');
+  const nuevos = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
+  if(!nuevos.length){ alert('Debe quedar al menos una persona.'); return; }
+  monitores = Array.from(new Set(nuevos));
+  if(!persistirMonitores()){ alert('No se pudo guardar: ' + (ultimoErrorAlmacen || '')); return; }
+  renderMonitores();
+  pintarMonitores();
+  toast('Lista guardada.');
+});
+
+// ---------- Estado del almacenamiento ----------
+async function renderEstadoAlmacen(){
+  const cont = document.getElementById('estado-almacen');
+  if(!cont) return;
+
+  const pendientes = monitoreos.filter(r => !r.sincronizado).length;
+  const eliminados = monitoreos.filter(r => r.eliminado).length;
+  const conPunto   = activos().filter(r => puntoDe(r.id)).length;
+  const fueraBase  = activos().filter(r => !r.enBase).length;
+  const bytes = (()=>{ try{
+    return new Blob([(localStorage.getItem(LS_KEY)||'') + (localStorage.getItem(LS_PUNTOS)||'')]).size;
+  }catch(e){ return 0; } })();
+  const m = meta();
+
+  let persistente = 'no consultable en este navegador';
+  try{
+    if(navigator.storage && navigator.storage.persisted){
+      persistente = (await navigator.storage.persisted())
+        ? 'sí — el navegador no debería liberarlos por su cuenta'
+        : 'no — instala la app en la pantalla de inicio para mejorarlo';
+    }
+  }catch(e){}
+
+  const sw = ('serviceWorker' in navigator)
+    ? (navigator.serviceWorker.controller ? 'activo — la app abre sin conexión' : 'registrándose…')
+    : (location.protocol === 'file:'
+        ? 'no aplica (archivo local): la app abre siempre'
+        : 'no disponible sobre http:// — hace falta el servidor encendido');
+
+  cont.innerHTML = `
+    <table class="estado">
+      <tr><th>Monitoreos guardados</th><td><b>${activos().length}</b>${eliminados ? ` <span class="hint">(+${eliminados} eliminados, conservados para sincronizar)</span>` : ''}</td></tr>
+      <tr><th>Con punto GPS</th><td>${conPunto} de ${activos().length}</td></tr>
+      <tr><th>Árboles fuera de la base</th><td>${fueraBase}${fueraBase ? ' <span class="pill warn">revisar en oficina</span>' : ''}</td></tr>
+      <tr><th>Base de árboles</th><td>${ARBOLES.length} árboles · ${ARBOLES_POR_PREDIO.size} predios
+        <div class="hint">Corte de septiembre de 2026. Viene dentro de la app; se actualiza publicando una versión nueva.</div></td></tr>
+      <tr><th>Sin sincronizar</th><td>${pendientes} <span class="hint">— todavía no hay servidor: todo vive en este dispositivo</span></td></tr>
+      <tr><th>Último guardado</th><td>${m.ultimoGuardado ? esc(new Date(m.ultimoGuardado).toLocaleString()) : '—'}</td></tr>
+      <tr><th>Espacio usado</th><td>${(bytes/1024).toFixed(1)} KB <span class="hint">de ~5 MB disponibles</span></td></tr>
+      <tr><th>Copia interna (IndexedDB)</th><td>${idbDisponible === true ? '<span class="pill ok">activa</span>' : idbDisponible === false ? '<span class="pill warn">no disponible</span>' : 'comprobando…'}</td></tr>
+      <tr><th>Almacenamiento persistente</th><td>${esc(persistente)}</td></tr>
+      <tr><th>Modo sin conexión</th><td>${esc(sw)}</td></tr>
+      <tr><th>Origen de los datos</th><td><code>${esc(location.origin === 'null' ? 'archivo local (file://)' : location.origin)}</code>
+        <div class="hint">Los datos pertenecen a esta dirección exacta. Si cambia, los monitoreos no aparecerán en la nueva: usa el respaldo JSON para moverlos.</div></td></tr>
+      <tr><th>ID de este dispositivo</th><td><code>${esc(idDispositivo().slice(0,8))}</code></td></tr>
+      <tr><th>Versión de la app</th><td><code>${esc(APP_VERSION)}</code> <span class="hint">— cuando haya una nueva sale un aviso arriba con el botón Actualizar</span></td></tr>
+    </table>
+    <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn ghost small" id="btn-verificar-almacen">Verificar y reparar almacenamiento</button>
+      ${eliminados ? `<button class="btn ghost small" id="btn-purgar">Purgar ${eliminados} eliminado(s)</button>` : ''}
+    </div>`;
+
+  document.getElementById('btn-verificar-almacen').addEventListener('click', async ()=>{
+    const espejo = await idbLeer('monitoreos');
+    const antes = monitoreos.length;
+    monitoreos = fusionar(monitoreos, Array.isArray(espejo) ? espejo : []);
+    const espejoP = await idbLeer('puntos');
+    puntos = fusionarPuntos(puntos, Array.isArray(espejoP) ? espejoP : []);
+    const ok = persistirMonitoreos() && persistirPuntos();
+    await idbEscribir('monitoreos', monitoreos);
+    await idbEscribir('puntos', puntos);
+    await idbEscribir('monitores', monitores);
+    renderEstadoAlmacen(); renderHistorial();
+    alert(ok
+      ? `Almacenamiento verificado.\n\nRegistros en total: ${monitoreos.length}` +
+        (monitoreos.length > antes ? `\nRecuperados de la copia interna: ${monitoreos.length - antes}`
+                                   : '\nLas dos copias coinciden.')
+      : 'La escritura sigue fallando: ' + (ultimoErrorAlmacen || ''));
+  });
+
+  const btnPurgar = document.getElementById('btn-purgar');
+  if(btnPurgar) btnPurgar.addEventListener('click', ()=>{
+    if(!confirm(`Se eliminarán definitivamente ${eliminados} registro(s). No se puede deshacer.`)) return;
+    const vivos = new Set(monitoreos.filter(r => !r.eliminado).map(r => r.id));
+    monitoreos = monitoreos.filter(r => !r.eliminado);
+    puntos = puntos.filter(p => vivos.has(p.monitoreoId));
+    persistirMonitoreos(); persistirPuntos();
+    renderEstadoAlmacen();
+  });
+}
+
+// ---------- Respaldo JSON ----------
+document.getElementById('btn-exportar-json').addEventListener('click', ()=>{
+  const respaldo = {
+    formato: 'monitoreo-semilleros-solano',
+    version: 1,
+    app: APP_VERSION,
+    exportado: ahora(),
+    dispositivo: idDispositivo(),
+    monitores,
+    monitoreos,
+    puntos
+  };
+  descargar(new Blob([JSON.stringify(respaldo, null, 2)], {type:'application/json'}),
+            `respaldo_semilleros_${hoyISO()}.json`);
+});
+
+document.getElementById('input-importar').addEventListener('change', (ev)=>{
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const datos = JSON.parse(reader.result);
+      if(!Array.isArray(datos.monitoreos)) throw new Error('formato inválido');
+      const antes = monitoreos.length;
+      const unido = fusionar(monitoreos, datos.monitoreos);
+      const nuevos = unido.length - antes;
+      if(!confirm(`El archivo trae ${datos.monitoreos.length} monitoreo(s).\n\n` +
+                  `Se AÑADEN a los de este dispositivo (no se borra nada): ${nuevos} nuevo(s).\n\n¿Continuar?`)) return;
+      monitoreos = unido;
+      if(!persistirMonitoreos()){ alert('No se pudo guardar la importación: ' + (ultimoErrorAlmacen || '')); return; }
+      if(Array.isArray(datos.puntos) && datos.puntos.length){
+        puntos = fusionarPuntos(puntos, datos.puntos);
+        persistirPuntos();
+      }
+      if(Array.isArray(datos.monitores) && datos.monitores.length){
+        monitores = Array.from(new Set([...monitores, ...datos.monitores]));
+        persistirMonitores();
+        pintarMonitores();
+      }
+      alert(`Respaldo importado. Se añadieron ${nuevos} monitoreo(s).`);
+      renderHistorial(); renderRecorrido(); renderCalendario();
+      renderMonitores(); renderEstadoAlmacen();
+    }catch(e){
+      alert('El archivo no es un respaldo válido.');
+    }
+  };
+  reader.readAsText(file);
+  ev.target.value = '';
+});
+
+document.getElementById('btn-borrar-todo').addEventListener('click', ()=>{
+  if(!monitoreos.length){ alert('No hay datos que borrar.'); return; }
+  if(!confirm(`Esto borrará los ${monitoreos.length} monitoreo(s) guardados en este navegador. ¿Continuar?`)) return;
+  if(!confirm('¿Seguro? No se puede deshacer. Si aún no exportaste el respaldo JSON, cancela y expórtalo primero.')) return;
+  monitoreos = []; puntos = [];
+  persistirMonitoreos(); persistirPuntos();
+  limpiarBorrador();
+  renderHistorial(); renderRecorrido(); renderCalendario(); renderEstadoAlmacen();
+});
+
+/* ---------- Arranque del almacén ---------- */
+async function arrancarAlmacen(){
+  try{
+    if(navigator.storage && navigator.storage.persist){
+      const yaEs = await navigator.storage.persisted();
+      if(!yaEs) await navigator.storage.persist();
+    }
+  }catch(e){}
+
+  const espejo = await idbLeer('monitoreos');
+  if(Array.isArray(espejo) && espejo.length){
+    const antes = monitoreos.length;
+    const unido = fusionar(monitoreos, espejo);
+    const huella = l => JSON.stringify(l.map(r => [r.id, r.actualizadoEn, r.eliminado]).sort());
+    if(huella(unido) !== huella(monitoreos)){
+      monitoreos = unido;
+      persistirMonitoreos();
+      if(unido.length > antes){
+        mostrarBanner(`Se recuperaron ${unido.length - antes} monitoreo(s) desde la copia interna del navegador.`, 'ok');
+      }
+      renderHistorial();
+    }
+  }else if(monitoreos.length){
+    idbEscribir('monitoreos', monitoreos);
+  }
+
+  const espejoPtos = await idbLeer('puntos');
+  if(Array.isArray(espejoPtos) && espejoPtos.length){
+    const unido = fusionarPuntos(puntos, espejoPtos);
+    if(unido.length !== puntos.length){ puntos = unido; persistirPuntos(); renderHistorial(); }
+  }else if(puntos.length){
+    idbEscribir('puntos', puntos);
+  }
+
+  const espejoMon = await idbLeer('monitores');
+  if(Array.isArray(espejoMon) && espejoMon.length && !lsLeer(LS_MONITORES, null)){
+    monitores = espejoMon;
+    persistirMonitores();
+    pintarMonitores();
+  }
+  renderEstadoAlmacen();
+}
+
+/* ---------- Service worker ----------
+   Lo registra actualizar.js, servido desde la raíz del sitio (/sw.js), que
+   cubre las tres apps de campo y muestra el botón "Actualizar". */
+window.addEventListener('ae:sw-listo', ()=> setTimeout(renderEstadoAlmacen, 1500));
+window.aeAntesDeActualizar = escribirBorrador;   // no perder los 400 ms del borrador
+
+// ---------- Arranque ----------
+pintarPredios(document.getElementById('predio'), false);
+pintarPredios(document.getElementById('recorrido-predio'), false);
+pintarPredios(document.getElementById('filtro-predio'), true);
+pintarMonitores();
+
+document.getElementById('fecha').value = hoyISO();
+document.getElementById('recorrido-mes').value = hoyISO().slice(0,7);
+if(prefs.predio)  document.getElementById('predio').value = prefs.predio;
+if(prefs.monitor && monitores.includes(prefs.monitor)) document.getElementById('monitor').value = prefs.monitor;
+if(prefs.clima)   document.getElementById('clima').value = prefs.clima;
+document.getElementById('recorrido-predio').value = prefs.predio || '';
+
+renderFenologia();
+restaurarBorrador();
+actualizarBotonGuardar();
+renderHistorial();
+arrancarAlmacen();
+iniciarGps();     // la pestaña Registrar es la que abre por defecto
+</script>
+</body>
+</html>
