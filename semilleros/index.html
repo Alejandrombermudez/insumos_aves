@@ -227,6 +227,15 @@
           <div class="campo">
             <label for="fecha">Fecha del monitoreo</label>
             <input type="date" id="fecha" required>
+            <div style="margin-top:8px;">
+              <label for="ronda">Ronda a la que pertenece</label>
+              <select id="ronda" required></select>
+              <div class="hint">
+                Normalmente es el mes de la fecha. Cámbialo solo si estás terminando la
+                ronda del mes pasado: en 2026 la ronda de abril se cerró el 1 y 2 de mayo,
+                y esos registros son de abril.
+              </div>
+            </div>
           </div>
           <div class="campo">
             <label for="clima">Clima</label>
@@ -465,17 +474,25 @@ const ESCALA = [0, 25, 50, 75, 100];
 const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
 /* Observaciones que se repiten en campo. Están como botones para que la nota
-   frecuente no se escriba a mano cada vez (y no se escriba distinto cada vez). */
+   frecuente no se escriba a mano cada vez (y no se escriba distinto cada vez).
+   La lista no es inventada: son las notas que más se repiten en los 1 329
+   monitoreos de abril a agosto de 2026, ya con la ortografía resuelta. */
 const OBS_FRECUENTES = [
-  'Árbol en buen estado',
+  'Está cambiando de hoja',
+  'Defoliando',
+  'Hojas nuevas',
+  'Está en flor',
+  'Tiene botón floral',
+  'Está con frutos',
+  'Está en cosecha',
+  'Estuvo en cosecha',
+  'Ya pasó la cosecha',
+  'Tiene termitas',
+  'Rama partida',
+  'Se está secando',
+  'Árbol joven',
   'Placa ilegible',
-  'Lianas o bejucos en la copa',
-  'Epífitas abundantes',
-  'Árbol caído',
-  'Rebrote',
-  'Frutos en el suelo',
-  'Semillas recolectadas',
-  'No se pudo observar la copa'
+  'Lianas o bejucos en la copa'
 ];
 
 let ultimoErrorAlmacen = null;
@@ -594,9 +611,15 @@ function normalizarFenologia(f){
 function normalizarRegistro(r){
   const t = r.creadoEn || ahora();
   const idOk = typeof r.id === 'string' && ES_UUID.test(r.id);
+  const fecha = r.fecha || '';
   return {
     id:                  idOk ? r.id : uuid(),
-    fecha:               r.fecha || '',
+    fecha:               fecha,
+    /* La ronda es el mes de trabajo, no el mes del calendario. Una ronda puede
+       cerrarse en los primeros días del mes siguiente —pasó con la de abril de
+       2026, que terminó el 1 y 2 de mayo— y esos registros pertenecen a abril.
+       Todo lo que cuenta por mes (recorrido y calendario) usa la ronda. */
+    ronda:               /^\d{4}-\d{2}$/.test(r.ronda || '') ? r.ronda : fecha.slice(0,7),
     predio:              r.predio || '',
     codigoArbol:         (r.codigoArbol || '').toString().trim(),
     nombreComun:         r.nombreComun || '',
@@ -734,7 +757,9 @@ let puntos     = (lsLeer(LS_PUNTOS, []) || []).map(normalizarPunto).filter(p => 
 let monitores  = (function(){
   const m = lsLeer(LS_MONITORES, null);
   if(Array.isArray(m) && m.length) return m;
-  return ['Luis Carlos Cancimanci'];    // el único que aparece en la base actual
+  // Los dos que aparecen en los monitoreos de abril a agosto de 2026. Están tal
+  // como figuran en la base; falta completar los apellidos en Configuración.
+  return ['Luis Carlos', 'Carolina'];
 })();
 let prefs = lsLeer(LS_PREFS, {predio:'', monitor:'', clima:''});
 
@@ -797,13 +822,18 @@ function irA(tab){
 }
 
 // ---------- Desplegables ----------
+// Los predios van agrupados por vereda: en Solano la gente ubica los predios por
+// vereda antes que por nombre, y son dos grupos de tamaño parecido.
 function pintarPredios(select, incluirTodos){
   const previo = select.value;
-  select.innerHTML = (incluirTodos ? '<option value="">Todos los predios</option>' : '<option value="">Selecciona…</option>') +
-    PREDIOS.map(p => {
-      const n = (ARBOLES_POR_PREDIO.get(p) || []).length;
-      return `<option value="${esc(p)}">${esc(p)}${n ? ` (${n})` : ' — sin árboles'}</option>`;
-    }).join('');
+  const opcion = p => {
+    const n = (ARBOLES_POR_PREDIO.get(p) || []).length;
+    return `<option value="${esc(p)}">${esc(p)}${n ? ` (${n})` : ' — sin árboles'}</option>`;
+  };
+  select.innerHTML =
+    (incluirTodos ? '<option value="">Todos los predios</option>' : '<option value="">Selecciona…</option>') +
+    PREDIOS_POR_VEREDA.map(v =>
+      `<optgroup label="${esc(v.vereda)}">${v.predios.map(opcion).join('')}</optgroup>`).join('');
   select.value = previo;
 }
 function pintarMonitores(){
@@ -888,10 +918,28 @@ const inputCodigo  = document.getElementById('codigo-arbol');
 
 function predioElegido(){ return document.getElementById('predio').value; }
 
-function monitoreoDelMes(codigo, fechaISO){
-  const mes = (fechaISO || '').slice(0,7);
-  if(!mes || !codigo) return null;
-  return activos().find(r => r.codigoArbol === codigo && (r.fecha || '').slice(0,7) === mes) || null;
+function rondaElegida(){ return document.getElementById('ronda').value; }
+
+function monitoreoDeLaRonda(codigo, ronda){
+  if(!ronda || !codigo) return null;
+  return activos().find(r => r.codigoArbol === codigo && r.ronda === ronda) || null;
+}
+
+/* La ronda por defecto es el mes de la fecha; la alternativa es el mes anterior,
+   que es el único caso real (una ronda que se cierra a principios del mes
+   siguiente). Se repinta cada vez que cambia la fecha. */
+function pintarRondas(){
+  const sel = document.getElementById('ronda');
+  const f = document.getElementById('fecha').value;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(f)) return;
+  const previo = sel.value;
+  const [a, m] = [Number(f.slice(0,4)), Number(f.slice(5,7))];
+  const mesISO = (an, me) => `${an}-${String(me).padStart(2,'0')}`;
+  const anterior = m === 1 ? [a-1, 12] : [a, m-1];
+  const ops = [[mesISO(a, m), `${MESES[m-1]} ${a}`],
+               [mesISO(...anterior), `${MESES[anterior[1]-1]} ${anterior[0]}`]];
+  sel.innerHTML = ops.map(([v,t]) => `<option value="${v}">${t}</option>`).join('');
+  sel.value = ops.some(o => o[0] === previo) ? previo : ops[0][0];
 }
 
 function renderSugerencias(){
@@ -964,7 +1012,7 @@ function renderArbolInfo(){
   }
 
   const otroPredio = predio && a.p !== predio;
-  const yaEsteMes  = monitoreoDelMes(a.c, document.getElementById('fecha').value);
+  const yaEsteMes  = monitoreoDeLaRonda(a.c, rondaElegida());
   const dist       = (ultimaPosicion && a.lat != null)
     ? distanciaM(ultimaPosicion.latitud, ultimaPosicion.longitud, a.lat, a.lon)
     : null;
@@ -995,7 +1043,7 @@ function renderArbolInfo(){
     avisos += `
       <div class="aviso">
         <span class="pill warn">Ya monitoreado</span>
-        <span>Este árbol ya tiene un registro del ${esc(yaEsteMes.fecha)}. Si es corrección, guarda igual.</span>
+        <span>Este árbol ya tiene un registro de esta ronda, del ${esc(yaEsteMes.fecha)}. Si es corrección, guarda igual.</span>
       </div>`;
   }
   if(a.lat == null){
@@ -1010,9 +1058,10 @@ function renderArbolInfo(){
       <div class="datos">
         <span>Placa <b>${esc(a.c)}</b></span>
         <span>${esc(a.f)}</span>
-        <span>${esc(a.p)}</span>
+        <span>${esc(a.p)}${a.v ? ` · ${esc(a.v)}` : ''}</span>
         ${a.d != null ? `<span>DAP ${a.d} cm</span>` : ''}
         ${a.h != null ? `<span>Altura ${a.h} m</span>` : ''}
+        ${a.pr ? `<span class="pill ok" title="Corpoamazonia tiene protocolo de aprovechamiento para ${a.pr === 'especie' ? 'esta especie' : 'este género'}">con protocolo</span>` : ''}
       </div>
       ${avisos}
     </div>`;
@@ -1086,7 +1135,10 @@ document.getElementById('predio').addEventListener('change', (ev)=>{
   prefs.predio = ev.target.value; guardarPrefs();
   evaluarCodigo();
 });
-document.getElementById('fecha').addEventListener('change', ()=>{ renderArbolInfo(); guardarBorrador(); });
+document.getElementById('fecha').addEventListener('change', ()=>{
+  pintarRondas(); renderArbolInfo(); guardarBorrador();
+});
+document.getElementById('ronda').addEventListener('change', ()=>{ renderArbolInfo(); guardarBorrador(); });
 document.getElementById('monitor').addEventListener('change', (ev)=>{
   prefs.monitor = ev.target.value; guardarPrefs(); guardarBorrador();
 });
@@ -1143,6 +1195,7 @@ function escribirBorrador(){
     predio:        document.getElementById('predio').value,
     monitor:       document.getElementById('monitor').value,
     fecha:         document.getElementById('fecha').value,
+    ronda:         rondaElegida(),
     clima:         document.getElementById('clima').value,
     codigo:        inputCodigo.value,
     manual:        arbolManual,
@@ -1166,7 +1219,11 @@ function restaurarBorrador(){
   if(!b) return;
   if(b.predio)  document.getElementById('predio').value  = b.predio;
   if(b.monitor) document.getElementById('monitor').value = b.monitor;
-  if(b.fecha)   document.getElementById('fecha').value   = b.fecha;
+  if(b.fecha){  document.getElementById('fecha').value   = b.fecha; pintarRondas(); }
+  if(b.ronda){
+    const sel = document.getElementById('ronda');
+    if(Array.from(sel.options).some(o => o.value === b.ronda)) sel.value = b.ronda;
+  }
   if(b.clima)   document.getElementById('clima').value   = b.clima;
   if(b.observaciones) document.getElementById('observaciones').value = b.observaciones;
   if(b.fenologia) fenologiaActual = normalizarFenologia(b.fenologia);
@@ -1314,6 +1371,7 @@ document.getElementById('form-monitoreo').addEventListener('submit', (ev)=>{
 
   const reg = normalizarRegistro({
     fecha:               document.getElementById('fecha').value,
+    ronda:               rondaElegida(),
     predio:              predioElegido(),
     codigoArbol:         a ? a.c : arbolManual.codigo,
     nombreComun:         a ? a.n : arbolManual.n,
@@ -1359,7 +1417,7 @@ document.getElementById('form-monitoreo').addEventListener('submit', (ev)=>{
   evaluarCodigo();
   limpiarBorrador();
 
-  const pendientes = pendientesDelPredio(reg.predio, reg.fecha.slice(0,7));
+  const pendientes = pendientesDelPredio(reg.predio, reg.ronda);
   toast(`Guardado: ${reg.codigoArbol} — ${reg.nombreComun}.` +
         (pendientes ? ` Faltan ${pendientes} árboles en este predio.` : ' Predio completo este mes.'));
   inputCodigo.focus();
@@ -1371,9 +1429,9 @@ document.getElementById('form-monitoreo').addEventListener('submit', (ev)=>{
    Es la forma de no digitar el código: se toca el árbol de la lista. También
    es el control de avance del mes, que es lo que se reporta.
    ========================================================================= */
-function pendientesDelPredio(predio, mes){
+function pendientesDelPredio(predio, ronda){
   const del = ARBOLES_POR_PREDIO.get(predio) || [];
-  const hechos = new Set(activos().filter(r => (r.fecha||'').slice(0,7) === mes).map(r => r.codigoArbol));
+  const hechos = new Set(activos().filter(r => r.ronda === ronda).map(r => r.codigoArbol));
   return del.filter(a => !hechos.has(a.c)).length;
 }
 
@@ -1392,15 +1450,14 @@ function renderRecorrido(){
 
   const del = (ARBOLES_POR_PREDIO.get(predio) || []).slice();
   const hechos = new Map();
-  activos().filter(r => (r.fecha||'').slice(0,7) === mes)
-           .forEach(r => hechos.set(r.codigoArbol, r));
+  activos().filter(r => r.ronda === mes).forEach(r => hechos.set(r.codigoArbol, r));
 
   const listos = del.filter(a => hechos.has(a.c)).length;
   const pct = del.length ? Math.round(listos/del.length*100) : 0;
   const nombreMes = mes ? `${MESES[Number(mes.slice(5,7))-1]} ${mes.slice(0,4)}` : 'el mes elegido';
 
   resumen.innerHTML = del.length ? `
-    <div><b>${listos}</b> de <b>${del.length}</b> árboles monitoreados en ${esc(nombreMes)}</div>
+    <div><b>${listos}</b> de <b>${del.length}</b> árboles monitoreados en la ronda de ${esc(nombreMes)}</div>
     <div class="progreso"><div style="width:${pct}%"></div></div>
     <div class="hint">${del.length - listos} pendientes.</div>
   ` : '<div class="vacio">Este predio todavía no tiene árboles en la base de Solano.</div>';
@@ -1459,7 +1516,8 @@ function renderHistorial(){
     const p = puntoDe(r.id);
     return `
       <tr>
-        <td>${esc(r.fecha)}</td>
+        <td>${esc(r.fecha)}${r.ronda !== (r.fecha||'').slice(0,7)
+          ? `<div class="hint">ronda ${esc(MESES[Number(r.ronda.slice(5,7))-1] || '')}</div>` : ''}</td>
         <td class="mono"><b>${esc(r.codigoArbol)}</b>${r.enBase ? '' : ' <span class="pill warn">nuevo</span>'}</td>
         <td>${esc(r.nombreComun)}<br><span class="cientifico hint" style="margin:0;">${esc(r.nombreCientifico)}</span></td>
         <td>${esc(r.predio)}</td>
@@ -1537,16 +1595,20 @@ document.getElementById('btn-exportar-csv').addEventListener('click', ()=>{
   const lista = activos();
   if(!lista.length){ alert('No hay datos para exportar.'); return; }
   const encabezados = [
-    'id','Fecha','Predio','Código del árbol','Nombre común','Nombre científico','Familia',
-    'Está en la base','Clima',
+    'id','Fecha','Ronda','Año','Mes de la ronda','Vereda','Predio','Código del árbol','Nombre común','Nombre científico','Familia',
+    'Protocolo Corpoamazonia','Está en la base','Clima',
     ...FENOFASES.map(f => f.n + ' (%)'),
     'Estado fitosanitario','Cambio de placa','Placa anterior','Observaciones','Registra',
     'Latitud','Longitud','Precisión GPS (m)','Altitud (m)','GPS tomado en','Creado en','Dispositivo'
   ];
   const filas = lista.map(r => {
     const p = puntoDe(r.id);
+    const a = arbolPorCodigo(r.codigoArbol);
+    const mes = Number((r.ronda||'').slice(5,7));
     return [
-      r.id, r.fecha, r.predio, r.codigoArbol, r.nombreComun, r.nombreCientifico, r.familia,
+      r.id, r.fecha, r.ronda, (r.ronda||'').slice(0,4), MESES[mes-1] || '',
+      a ? a.v : '', r.predio, r.codigoArbol, r.nombreComun, r.nombreCientifico, r.familia,
+      a && a.pr ? (a.pr === 'especie' ? 'sí — coincide especie' : 'sí — coincide género') : 'no',
       r.enBase ? 'sí' : 'no', r.clima,
       ...FENOFASES.map(f => r.fenologia[f.k]),
       (r.estadoFitosanitario||[]).join('|'), r.cambioPlaca ? 'sí' : 'no', r.placaAnterior,
@@ -1570,7 +1632,7 @@ document.getElementById('btn-exportar-geojson').addEventListener('click', ()=>{
     const lon = p ? p.longitud : (a && a.lon != null ? a.lon : null);
     if(lat === null || lon === null) return null;
     const props = {
-      monitoreo_id: r.id, fecha: r.fecha, predio: r.predio,
+      monitoreo_id: r.id, fecha: r.fecha, ronda: r.ronda, predio: r.predio,
       codigo_arbol: r.codigoArbol, nombre_comun: r.nombreComun,
       nombre_cientifico: r.nombreCientifico, familia: r.familia,
       clima: r.clima,
@@ -1604,7 +1666,7 @@ document.getElementById('btn-exportar-geojson').addEventListener('click', ()=>{
    Un mes sin ningún monitoreo se raya: no es un cero, es que nadie fue.
    ========================================================================= */
 function aniosConDatos(){
-  const a = new Set(activos().map(r => (r.fecha||'').slice(0,4)).filter(x => /^\d{4}$/.test(x)));
+  const a = new Set(activos().map(r => (r.ronda||'').slice(0,4)).filter(x => /^\d{4}$/.test(x)));
   if(!a.size) a.add(String(new Date().getFullYear()));
   return Array.from(a).sort().reverse();
 }
@@ -1650,7 +1712,7 @@ function registrosDelCalendario(){
   const modo = document.getElementById('cal-agrupacion').value;
   const val  = document.getElementById('cal-valor').value;
   const anio = document.getElementById('cal-anio').value;
-  return activos().filter(r => (r.fecha||'').slice(0,4) === anio).filter(r => {
+  return activos().filter(r => (r.ronda||'').slice(0,4) === anio).filter(r => {
     if(modo === 'todo')    return true;
     if(modo === 'especie') return r.nombreComun === val;
     if(modo === 'predio')  return r.predio === val;
@@ -1664,7 +1726,7 @@ function matrizCalendario(lista){
   const m = FENOFASES.map(() => Array.from({length:12}, () => ({suma:0, n:0})));
   const observadosPorMes = Array.from({length:12}, () => 0);
   lista.forEach(r => {
-    const mes = Number((r.fecha||'').slice(5,7)) - 1;
+    const mes = Number((r.ronda||'').slice(5,7)) - 1;
     if(!(mes >= 0 && mes < 12)) return;
     observadosPorMes[mes]++;
     FENOFASES.forEach((f, i) => {
@@ -1999,6 +2061,7 @@ pintarPredios(document.getElementById('filtro-predio'), true);
 pintarMonitores();
 
 document.getElementById('fecha').value = hoyISO();
+pintarRondas();
 document.getElementById('recorrido-mes').value = hoyISO().slice(0,7);
 if(prefs.predio)  document.getElementById('predio').value = prefs.predio;
 if(prefs.monitor && monitores.includes(prefs.monitor)) document.getElementById('monitor').value = prefs.monitor;
