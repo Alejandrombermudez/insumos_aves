@@ -1,11 +1,14 @@
 # insumos_aves — Apps de campo de Amazonía Emprende
 
-Tres herramientas de campo en un solo sitio, con una pantalla de inicio para elegir a cuál entrar. Un solo link, un solo despliegue.
+Dos herramientas de campo en un solo sitio, con una pantalla de inicio para elegir a cuál entrar. Un solo link, un solo despliegue.
+
+> La app de **actividades, insumos y monitoreo de siembra** vivía aquí en `/insumos/`. Se separó el
+> 2026-09-05 a su propio repositorio y su propio despliegue:
+> [`actividades_monitoreo_campo`](https://github.com/Alejandrombermudez/actividades_monitoreo_campo).
 
 | App | Ruta | Para qué |
 |---|---|---|
 | 🦜 **Avistamiento de Aves** | `/aves/` | Registrar avistamientos durante el monitoreo (1040 especies de Caquetá), con punto GPS por avistamiento, historial, curva de acumulación de especies y export a CSV o GeoJSON. |
-| 🌱 **Monitoreo de Siembra** | `/insumos/` | Insumos, gastos y rendimientos por lote y núcleo, con inventario de bodegas, compras con factura y traslados con aceptación. |
 | 🌳 **Árboles Semilleros** | `/semilleros/` | Monitoreo fenológico mensual de los 273 árboles semilleros de Solano: al digitar el código de la placa aparecen solos el nombre común y el científico, se marca la fenología de la copa (9 fenofases, escala 0–100) y el estado fitosanitario, y el calendario fenológico se arma solo. |
 
 > **Son demos.** No están conectadas a Supabase ni a ningún servidor. Cada app guarda su información en el dispositivo donde se usa, y **no se sincroniza** entre celulares ni con el PC. Para mover datos, cada app tiene exportar/importar respaldo en JSON.
@@ -21,7 +24,6 @@ sw.js               service worker: guarda todo para uso sin internet
 actualizar.js       avisa con un botón cuando hay una versión nueva
 icons/              íconos del inicio
 aves/               app de avistamiento de aves (index.html + manifest + íconos)
-insumos/            app de monitoreo de siembra (index.html + manifest + íconos)
 semilleros/         app de monitoreo fenológico (index.html + arboles.js + manifest + íconos)
 ```
 
@@ -75,14 +77,14 @@ Cada push a `main` vuelve a desplegar.
 
 ## Uso sin internet
 
-`sw.js` guarda las tres apps en el dispositivo la primera vez que se abren **con** conexión. Después funcionan sin señal, que es lo normal en campo.
+`sw.js` guarda las dos apps en el dispositivo la primera vez que se abren **con** conexión. Después funcionan sin señal, que es lo normal en campo.
 
 Para instalarlas como app en el celular:
 
 - **Android (Chrome):** abrir el link → menú ⋮ → *Añadir a pantalla de inicio* (o *Instalar app*).
 - **iPhone (Safari, no Chrome):** abrir el link → botón Compartir → *Añadir a pantalla de inicio*.
 
-Se pueden instalar por separado: desde `/aves/` queda el ícono del pájaro, desde `/insumos/` el del brote, desde `/semilleros/` el del árbol con frutos, y desde el inicio el de la hoja.
+Se pueden instalar por separado: desde `/aves/` queda el ícono del pájaro, desde `/semilleros/` el del árbol con frutos, y desde el inicio el de la hoja.
 
 ### Al publicar cambios
 
@@ -100,7 +102,7 @@ Luego entrar a `http://localhost:5700`. Para probarlo desde el celular en el mis
 
 ## Datos y privacidad
 
-Nada sale del dispositivo. No hay servidor, ni cuentas, ni analítica. El "inicio de sesión" de la app de siembra es solo para separar lo que ve cada rol en el demo: no es control de acceso real.
+Nada sale del dispositivo. No hay servidor, ni cuentas, ni analítica.
 
 La base de árboles de `semilleros/` es información de campo del proyecto (código de placa,
 especie y coordenada aproximada), sin datos personales más allá del nombre del predio, que
