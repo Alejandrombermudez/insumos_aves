@@ -2,7 +2,7 @@
    Guarda las apps en el dispositivo para que funcionen sin internet.
    Sube el número de VERSION cuando cambies algo, para que se reemplace lo guardado. */
 
-const VERSION = 'ae-campo-v9';
+const VERSION = 'ae-campo-v10';
 const CACHE = `${VERSION}`;
 
 /* Todo lo que hace falta para que las apps abran sin conexión. */
@@ -23,6 +23,7 @@ const PRECARGA = [
   '/semilleros/',
   '/semilleros/index.html',
   '/semilleros/arboles.js',
+  '/semilleros/historico.js',
   '/semilleros/manifest.json',
   '/semilleros/icon-180.png',
   '/semilleros/icon-192.png',

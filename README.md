@@ -9,7 +9,7 @@ Dos herramientas de campo en un solo sitio, con una pantalla de inicio para eleg
 | App | Ruta | Para qué |
 |---|---|---|
 | 🦜 **Avistamiento de Aves** | `/aves/` | Registrar avistamientos durante el monitoreo (1040 especies de Caquetá), con punto GPS por avistamiento, historial, curva de acumulación de especies y export a CSV o GeoJSON. |
-| 🌳 **Árboles Semilleros** | `/semilleros/` | Monitoreo fenológico mensual de los 273 árboles semilleros de Solano: al digitar el código de la placa aparecen solos el nombre común y el científico, se marca la fenología de la copa (9 fenofases, escala 0–100) y el estado fitosanitario, y el calendario fenológico se arma solo. |
+| 🌳 **Árboles Semilleros** | `/semilleros/` | Monitoreo fenológico mensual de los 273 árboles semilleros de Solano: al digitar el código de la placa aparecen solos el nombre común y el científico, se marca la fenología de la copa (9 fenofases, escala 0–100), el estado fitosanitario y si hubo fauna en el árbol, y el calendario fenológico se arma solo. Con floración o fruto maduro en 50 % o más pide una foto nítida de la flor o el fruto. Trae dentro los 1 329 monitoreos de Kobo de abril a agosto de 2026 (datos externos), que se ven aparte o junto con los registrados en la app. |
 
 > **Son demos.** No están conectadas a Supabase ni a ningún servidor. Cada app guarda su información en el dispositivo donde se usa, y **no se sincroniza** entre celulares ni con el PC. Para mover datos, cada app tiene exportar/importar respaldo en JSON.
 >
@@ -24,13 +24,22 @@ sw.js               service worker: guarda todo para uso sin internet
 actualizar.js       avisa con un botón cuando hay una versión nueva
 icons/              íconos del inicio
 aves/               app de avistamiento de aves (index.html + manifest + íconos)
-semilleros/         app de monitoreo fenológico (index.html + arboles.js + manifest + íconos)
+semilleros/         app de monitoreo fenológico (index.html + arboles.js + historico.js + manifest + íconos)
 ```
 
 `semilleros/arboles.js` es la base de los 273 árboles de Solano (código, predio, especie,
 coordenada, DAP, altura). Va aparte del `index.html` para que el diff en git sea legible
 y para que actualizarla no obligue a tocar el código de la app. **Se genera desde el Excel,
 no se edita a mano.**
+
+`semilleros/historico.js` son los monitoreos **externos**: los 1 329 que se levantaron en
+Kobo de abril a agosto de 2026, antes de la app. Son de solo lectura y en Historial y
+Calendario se elige si se ven los internos (registrados en la app), los externos o los dos.
+También **se genera, no se edita a mano**.
+
+Las fotos de flor o fruto se guardan en IndexedDB del celular, reducidas a 2048 px. No
+viajan en el respaldo JSON (lo harían demasiado pesado): se descargan aparte en un ZIP
+desde Configuración, con un `fotos.csv` que dice de qué árbol, ronda y órgano es cada una.
 
 No hay build ni dependencias: es HTML, CSS y JavaScript planos. Editar es abrir el `index.html` que corresponda.
 

@@ -186,6 +186,39 @@
   table.cal td.sindato{background:repeating-linear-gradient(45deg,#f4f1e8,#f4f1e8 4px,#ebe6d9 4px,#ebe6d9 8px); color:transparent;}
   .cal-leyenda{display:flex; gap:14px; flex-wrap:wrap; font-size:.75rem; color:#6b7368; margin-top:10px; align-items:center;}
   .cal-leyenda i{display:inline-block; width:16px; height:12px; border-radius:3px; margin-right:4px; vertical-align:-1px;}
+
+  /* ---- opciones de un toque (sí/no, tipo de animal, qué hacía) ---- */
+  .opciones{display:flex; gap:6px; flex-wrap:wrap;}
+  .opciones button{
+    background:#fff; border:1px solid var(--borde); border-radius:7px; padding:8px 13px;
+    font-family:inherit; font-size:.88rem; cursor:pointer; color:var(--texto);
+  }
+  .opciones button.sel{background:var(--ambar); border-color:var(--ambar-osc); color:var(--verde); font-weight:700;}
+  .opciones.si-no button{min-width:72px;}
+  .chips button:disabled{opacity:.4; cursor:not-allowed; text-decoration:line-through;}
+  .chips button.salud{border-color:#e0b6b6;}
+
+  /* ---- fauna ---- */
+  .animal-caja{border:1px solid var(--borde); border-radius:9px; padding:12px; margin-top:10px; background:#fff;}
+  .animal-caja .cab{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+  .animal-caja .cab b{color:var(--verde); font-size:.88rem;}
+  .animal-caja .sub-campo{margin-top:10px;}
+  .animal-caja .sub-campo > label{font-size:.78rem;}
+
+  /* ---- foto de flor o fruto ---- */
+  .foto-caja{border:1px solid #e8cf9d; background:#fdf4e3; border-radius:9px; padding:12px 14px; margin-bottom:14px;}
+  .foto-caja h3{margin:0 0 6px; font-size:1rem; color:var(--verde);}
+  .foto-caja ul{margin:6px 0 0; padding-left:18px; font-size:.82rem; line-height:1.55;}
+  .foto-slot{background:#fff; border:1px solid var(--borde); border-radius:8px; padding:10px; margin-top:10px;}
+  .foto-slot .tit{font-weight:600; color:var(--verde); font-size:.9rem; margin-bottom:8px;}
+  .foto-slot .fila{display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;}
+  .foto-slot img{width:120px; height:120px; object-fit:cover; border-radius:6px; border:1px solid var(--borde); cursor:zoom-in; background:var(--hueso);}
+  .foto-slot .acciones{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;}
+  .foto-slot select{margin-top:8px;}
+  #visor{position:fixed; inset:0; background:rgba(20,26,22,.92); z-index:70; display:flex;
+    align-items:center; justify-content:center; padding:16px; flex-direction:column; gap:10px;}
+  #visor img{max-width:100%; max-height:84vh; border-radius:6px;}
+  #visor .pie{color:var(--hueso); font-size:.85rem; text-align:center;}
 </style>
 </head>
 <body>
@@ -223,6 +256,10 @@
           <div class="campo">
             <label for="monitor">Nombre de quien registra</label>
             <select id="monitor" required></select>
+            <div class="hint" id="monitor-hint">
+              Se llena solo al elegir el predio, y el predio al elegir la persona, según
+              <b>Configuración → Quién registra en cada predio</b>.
+            </div>
           </div>
           <div class="campo">
             <label for="fecha">Fecha del monitoreo</label>
@@ -277,6 +314,10 @@
           </div>
         </div>
 
+        <!-- Aparece solo si floración o fruto maduro llegan a 50 o más -->
+        <div id="foto-bloque" class="foto-caja oculto"></div>
+        <input type="file" id="input-foto" accept="image/*" capture="environment" class="oculto">
+
         <div class="campo">
           <label>Estado fitosanitario</label>
           <div class="fila-check" id="fitosanitario">
@@ -286,7 +327,20 @@
             <label><input type="checkbox" value="Presencia de hongos"> Presencia de hongos</label>
             <label><input type="checkbox" value="Afectación mecánica"> Afectación mecánica</label>
           </div>
-          <div class="hint">Se puede marcar más de uno. «Sano» no se combina con los demás.</div>
+          <div class="hint">
+            Se puede marcar más de uno. «Sano» no se combina con los demás, ni con las
+            observaciones de daño (las de borde rojo).
+          </div>
+        </div>
+
+        <div class="campo">
+          <label>¿Vio algún animal en el árbol semillero?</label>
+          <div class="opciones si-no" id="vio-animal">
+            <button type="button" data-vio="si">Sí</button>
+            <button type="button" data-vio="no">No</button>
+          </div>
+          <div id="animales"></div>
+          <button type="button" class="btn ghost small oculto" id="btn-otro-animal" style="margin-top:8px;">+ Otro animal</button>
         </div>
 
         <div class="campo">
@@ -335,6 +389,7 @@
     <div class="card">
       <h2>Monitoreos registrados</h2>
       <div class="toolbar">
+        <select id="filtro-fuente" class="sel-fuente"></select>
         <select id="filtro-predio"><option value="">Todos los predios</option></select>
         <input type="text" id="filtro-texto" placeholder="Filtrar por código o especie…">
         <button class="btn ghost small" id="btn-limpiar-filtros">Limpiar</button>
@@ -346,12 +401,13 @@
           <thead>
             <tr>
               <th>Fecha</th><th>Código</th><th>Especie</th><th>Predio</th>
-              <th>Fenología</th><th>Fitosanitario</th><th>GPS</th><th></th>
+              <th>Fenología</th><th>Estado y observaciones</th><th>GPS</th><th></th>
             </tr>
           </thead>
           <tbody></tbody>
         </table>
       </div>
+      <div id="historial-resumen" class="hint" style="margin-top:8px;"></div>
       <div id="historial-vacio" class="vacio oculto">Todavía no hay monitoreos guardados en este dispositivo.</div>
     </div>
   </section>
@@ -369,6 +425,7 @@
         </select>
         <select id="cal-valor"></select>
         <select id="cal-anio"></select>
+        <select id="cal-fuente" class="sel-fuente"></select>
         <button class="btn small" id="btn-exportar-calendario">⬇ Exportar CSV</button>
       </div>
       <div id="calendario"></div>
@@ -392,6 +449,23 @@
     </div>
 
     <div class="card">
+      <h2>Quién registra en cada predio</h2>
+      <div id="lista-asignacion"></div>
+      <div style="margin-top:10px;">
+        <button class="btn small" id="btn-guardar-asignacion">Guardar</button>
+      </div>
+      <div class="hint" style="margin-top:8px;">
+        Con esto, al elegir el predio en el formulario se llena solo el nombre de quien
+        registra, y al elegir la persona se llena su predio. Varios predios se llaman igual
+        que su dueño, así que de entrada cada predio queda con la persona de ese nombre.
+        La relación va por el predio, nunca por el parecido del nombre: «Luis Carlos», quien
+        hizo las rondas de abril a agosto, no es el predio «Luis Carlos Cancimanci» hasta
+        que aquí se diga. A quien no tenga predio fijo (por ejemplo, quien hace la ronda en
+        todos) la app no lo cambia por el dueño al pasar de un predio a otro.
+      </div>
+    </div>
+
+    <div class="card">
       <h2>Respaldo</h2>
       <p style="font-size:.88rem; line-height:1.5;">
         Los datos viven solo en este dispositivo. Exporta el respaldo antes de formatear el
@@ -399,13 +473,18 @@
       </p>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <button class="btn small" id="btn-exportar-json">⬇ Exportar respaldo (JSON)</button>
+        <button class="btn small" id="btn-exportar-fotos">⬇ Descargar fotos (ZIP)</button>
         <label class="btn ghost small" style="margin:0; cursor:pointer;">
           ⬆ Importar respaldo
           <input type="file" id="input-importar" accept="application/json" class="oculto">
         </label>
         <button class="btn rojo small" id="btn-borrar-todo">Borrar todo</button>
       </div>
-      <div class="hint" style="margin-top:8px;">Importar <b>suma</b> registros, no reemplaza: así se juntan varios celulares en uno.</div>
+      <div class="hint" style="margin-top:8px;">
+        Importar <b>suma</b> registros, no reemplaza: así se juntan varios celulares en uno.
+        Las fotos no van dentro del JSON (lo harían demasiado pesado): se descargan aparte
+        en el ZIP, con el código del árbol y la ronda en el nombre de cada archivo.
+      </div>
     </div>
 
     <div class="card">
@@ -422,9 +501,11 @@
 </footer>
 
 <div id="toast" class="oculto"></div>
+<div id="visor" class="oculto"></div>
 
 <script src="/actualizar.js"></script>
 <script src="arboles.js"></script>
+<script src="historico.js"></script>
 <script>
 /* =========================================================================
    ALMACENAMIENTO LOCAL — offline-first, una copia completa por dispositivo
@@ -442,16 +523,20 @@
       piloto se pueda subir tal cual sin volver a digitarlo.
    ========================================================================= */
 
-const APP_VERSION    = '1.0';
+const APP_VERSION    = '1.1';
 const LS_KEY         = 'sem_monitoreos_v1';
 const LS_PUNTOS      = 'sem_puntos_v1';
 const LS_MONITORES   = 'sem_monitores_v1';
+const LS_ASIGNACION  = 'sem_asignacion_v1'; // predio → quien registra
 const LS_DISPOSITIVO = 'sem_dispositivo_id';
 const LS_BORRADOR    = 'sem_borrador_v1';
 const LS_PREFS       = 'sem_prefs_v1';      // últimas elecciones: predio, monitor, clima
 const LS_META        = 'sem_meta_v1';
+const LS_FUENTE      = 'sem_fuente_v1';     // internos / externos / ambos, por pestaña
 const IDB_NOMBRE     = 'sem_monitoreo';
+const IDB_VERSION    = 2;                   // la 2 añade el almacén de fotos
 const IDB_STORE      = 'respaldo';
+const IDB_FOTOS      = 'fotos';
 
 /* Las nueve fenofases del formulario, en el orden en que se observan:
    primero la hoja, luego la flor, luego el fruto, al final la regeneración. */
@@ -493,6 +578,58 @@ const OBS_FRECUENTES = [
   'Árbol joven',
   'Placa ilegible',
   'Lianas o bejucos en la copa'
+];
+
+/* Las observaciones que describen un daño van atadas al estado fitosanitario
+   que implican. No tiene sentido un árbol «Sano» que «se está secando»: con
+   «Sano» marcado estas notas se apagan, y tocar una marca su estado (y quita
+   «Sano»). Las lianas no están: un bejuco en la copa no enferma al árbol. */
+const OBS_SALUD = {
+  'Tiene termitas':  'Presencia de insectos',
+  'Rama partida':    'Afectación mecánica',
+  'Se está secando': 'Enfermo'
+};
+/* Lo mismo escrito a mano: no se bloquea (puede decir «sin hongos»), pero se
+   pregunta antes de guardar un «Sano» que lo contradiga. */
+const PALABRAS_DANO = ['seca', 'seco', 'termita', 'comejen', 'rama partida', 'rama quebrada',
+                       'hongo', 'plaga', 'insecto', 'enferm', 'podrid', 'muert'];
+
+/* Foto obligatoria: con floración o fruto maduro en 50 o más, la flor o el
+   fruto se ven desde abajo y la foto sirve para confirmar la especie y el
+   estado de la semilla. */
+const UMBRAL_FOTO = 50;
+const ORGANOS = [
+  {k:'flor',  fase:'floracion',   n:'la flor',         titulo:'Foto de la flor'},
+  {k:'fruto', fase:'frutoMaduro', n:'el fruto maduro', titulo:'Foto del fruto maduro'}
+];
+const MOTIVOS_SIN_FOTO = [
+  'La copa está muy alta o tapada',
+  'La cámara o el celular fallaron',
+  'Lluvia o muy poca luz',
+  'Otro'
+];
+const FOTO_LADO_MAX = 2048;   // px del lado largo al guardar: alcanza para ver la flor
+const FOTO_CALIDAD  = 0.87;
+/* Nitidez mínima, en la escala de medirNitidez(). Calibrado en Chrome con cinco
+   fotos reales y sus versiones desenfocadas y movidas a propósito: las
+   enfocadas dieron de 685 a 8 514; las desenfocadas o movidas (6 px de
+   desenfoque, 30 a 60 px de movimiento sobre la foto completa), de 8 a 84. Por
+   debajo de este valor la app pide repetirla, pero deja usarla si a la vista
+   está bien: una fruta lisa que llena toda la foto puede dar poco sin estar
+   borrosa. */
+const UMBRAL_NITIDEZ = 100;
+
+/* Fauna en el árbol: el tipo de animal es lista cerrada (se cuenta), el nombre
+   es como lo conocen en la vereda (se escribe). */
+const ANIMALES  = ['Mico', 'Ave', 'Boruga', 'Danta', 'Gurre', 'Otro'];
+const CONDUCTAS = ['Alimentándose', 'Descansando', 'Polinizando', 'Perchado', 'Encuentro de cópula', 'Otra'];
+
+/* De dónde salen los monitoreos que se muestran. Internos: los registrados en
+   esta app. Externos: los de Kobo, abril a agosto de 2026 (historico.js). */
+const FUENTES = [
+  {k:'internos', n:'Internos (esta app)'},
+  {k:'externos', n:'Externos (Kobo, abr–ago 2026)'},
+  {k:'ambos',    n:'Internos y externos'}
 ];
 
 let ultimoErrorAlmacen = null;
@@ -551,10 +688,12 @@ let idbDisponible = null;   // null = sin probar · true/false = resultado
 function idbAbrir(){
   return new Promise((resolve, reject) => {
     if(!self.indexedDB){ idbDisponible = false; return reject(new Error('sin indexedDB')); }
-    const req = indexedDB.open(IDB_NOMBRE, 1);
+    const req = indexedDB.open(IDB_NOMBRE, IDB_VERSION);
     req.onupgradeneeded = () => {
+      // Subir de versión solo AÑADE almacenes: el respaldo de la versión 1 queda intacto.
       const db = req.result;
       if(!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+      if(!db.objectStoreNames.contains(IDB_FOTOS)) db.createObjectStore(IDB_FOTOS);
     };
     req.onsuccess = () => { idbDisponible = true; resolve(req.result); };
     req.onerror   = () => { idbDisponible = false; reject(req.error); };
@@ -585,6 +724,34 @@ async function idbLeer(clave){
   }catch(e){ return undefined; }
 }
 
+/* ---------- Fotos ----------
+   Una foto pesa cientos de KB: no cabe en localStorage (~5 MB en total). Van
+   solo en IndexedDB, como Blob, con el id de la foto como llave. El monitoreo
+   guarda la ficha de la foto (id, órgano, tamaño, nitidez), no la imagen. */
+async function idbFoto(modo, fn){
+  const db = await idbAbrir();
+  try{
+    return await new Promise((res, rej) => {
+      const tx = db.transaction(IDB_FOTOS, modo);
+      let salida;
+      const r = fn(tx.objectStore(IDB_FOTOS));
+      if(r) r.onsuccess = () => { salida = r.result; };
+      tx.oncomplete = () => res(salida);
+      tx.onerror = () => rej(tx.error);
+      tx.onabort = () => rej(tx.error);
+    });
+  }finally{ db.close(); }
+}
+async function fotoGuardar(id, blob){
+  try{ await idbFoto('readwrite', s => s.put(blob, id)); return true; }catch(e){ return false; }
+}
+async function fotoLeer(id){
+  try{ return await idbFoto('readonly', s => s.get(id)) || null; }catch(e){ return null; }
+}
+async function fotoBorrar(id){
+  try{ await idbFoto('readwrite', s => s.delete(id)); return true; }catch(e){ return false; }
+}
+
 // ---------- identidad del dispositivo ----------
 function idDispositivo(){
   let id = null;
@@ -606,6 +773,31 @@ function normalizarFenologia(f){
     salida[k] = ESCALA.includes(v) ? v : null;   // null = no se observó, distinto de 0
   });
   return salida;
+}
+
+function normalizarFoto(f){
+  if(!f || typeof f.id !== 'string' || !ORGANOS.some(o => o.k === f.organo)) return null;
+  const num = v => isFinite(Number(v)) ? Number(v) : null;
+  return {
+    id:        f.id,
+    organo:    f.organo,
+    ancho:     num(f.ancho),
+    alto:      num(f.alto),
+    bytes:     num(f.bytes),
+    nitidez:   num(f.nitidez),
+    borrosa:   f.borrosa === true,
+    aceptada:  f.aceptada === true,     // borrosa según la app, pero quien la tomó la dio por buena
+    tomadaEn:  f.tomadaEn || null
+  };
+}
+function normalizarAnimal(a){
+  if(!a || !ANIMALES.includes(a.tipo)) return null;
+  return {
+    tipo:        a.tipo,
+    nombre:      (a.nombre || '').toString().trim(),
+    conducta:    CONDUCTAS.includes(a.conducta) ? a.conducta : '',
+    conductaOtra: a.conducta === 'Otra' ? (a.conductaOtra || '').toString().trim() : ''
+  };
 }
 
 function normalizarRegistro(r){
@@ -632,6 +824,14 @@ function normalizarRegistro(r){
     cambioPlaca:         r.cambioPlaca === true,
     placaAnterior:       (r.placaAnterior || '').toString().trim(),
     observaciones:       r.observaciones || '',
+    /* Fichas de las fotos de flor o fruto (la imagen va aparte, en IndexedDB)
+       y, si no se pudo tomar una que tocaba, el porqué. */
+    fotos:               Array.isArray(r.fotos) ? r.fotos.map(normalizarFoto).filter(Boolean) : [],
+    sinFoto:             Array.isArray(r.sinFoto) ? r.sinFoto.filter(s => s && s.organo && s.motivo) : [],
+    /* null = registro de antes de la pregunta (Kobo o app 1.0), distinto de «no». */
+    vioAnimal:           r.vioAnimal === true ? true : r.vioAnimal === false ? false : null,
+    animales:            r.vioAnimal === true && Array.isArray(r.animales)
+                           ? r.animales.map(normalizarAnimal).filter(Boolean) : [],
     monitor:             r.monitor || '',
     creadoEn:            t,
     actualizadoEn:       r.actualizadoEn || t,
@@ -759,8 +959,37 @@ let monitores  = (function(){
   if(Array.isArray(m) && m.length) return m;
   // Los dos que aparecen en los monitoreos de abril a agosto de 2026. Están tal
   // como figuran en la base; falta completar los apellidos en Configuración.
+  // Los dueños de cada predio se suman abajo, desde la asignación.
   return ['Luis Carlos', 'Carolina'];
 })();
+
+/* ---------- Quién registra en cada predio ----------
+   Mapa predio → persona. De entrada cada predio queda con la persona que se
+   llama como él (los predios de Solano llevan el nombre del dueño). Se cambia
+   en Configuración y solo se guarda cuando alguien lo edita: mientras tanto
+   rige el de entrada, y un predio nuevo en arboles.js entra solo. */
+function asignacionInicial(){
+  const m = {};
+  PREDIOS.forEach(p => { m[p] = p; });
+  return m;
+}
+let asignacion = (function(){
+  const guardada = lsLeer(LS_ASIGNACION, null);
+  const base = asignacionInicial();
+  if(guardada && typeof guardada === 'object'){
+    PREDIOS.forEach(p => { if(p in guardada) base[p] = guardada[p] || ''; });
+  }
+  return base;
+})();
+function prediosDe(persona){
+  return persona ? PREDIOS.filter(p => asignacion[p] === persona) : [];
+}
+// Toda persona con predio asignado tiene que poder elegirse en el formulario.
+function sumarAsignadosALista(){
+  Object.values(asignacion).forEach(p => { if(p && !monitores.includes(p)) monitores.push(p); });
+}
+sumarAsignadosALista();
+
 let prefs = lsLeer(LS_PREFS, {predio:'', monitor:'', clima:''});
 
 function activos(){ return monitoreos.filter(r => !r.eliminado); }
@@ -791,6 +1020,58 @@ function arbolPorCodigo(cod){
          POR_CODIGO.get((cod||'').toString().trim()) || null;
 }
 
+/* ---------- Internos y externos ----------
+   Internos: lo registrado en esta app, en este celular (o importado de otro).
+   Externos: los monitoreos de Kobo de abril a agosto de 2026, que vienen dentro
+   de la app en historico.js. Son de solo lectura y tienen la misma forma que un
+   registro interno, para que historial, recorrido y calendario los traten igual. */
+const FENO_KEYS = FENOFASES.map(f => f.k);
+const EXTERNOS = (typeof HISTORICO !== 'undefined' ? HISTORICO : []).map(
+  ([id, c, predio, fecha, ronda, feno, fito, obs, monitor]) => {
+    const a = POR_CODIGO.get(c);
+    const fenologia = {};
+    FENO_KEYS.forEach((k, i) => { fenologia[k] = feno[i]; });
+    return {
+      id, fecha, ronda, predio, codigoArbol: c,
+      nombreComun: a ? a.n : '', nombreCientifico: a ? a.s : '', familia: a ? a.f : '',
+      enBase: !!a, clima: '', fenologia, estadoFitosanitario: fito,
+      cambioPlaca: false, placaAnterior: '', observaciones: obs,
+      fotos: [], sinFoto: [], vioAnimal: null, animales: [],
+      monitor, creadoEn: fecha + 'T12:00:00Z', actualizadoEn: fecha + 'T12:00:00Z',
+      dispositivo: typeof HISTORICO_DISPOSITIVO !== 'undefined' ? HISTORICO_DISPOSITIVO : '',
+      eliminado: false, sincronizado: false, externo: true
+    };
+  });
+const IDS_EXTERNOS = new Set(EXTERNOS.map(r => r.id));
+
+/* Un celular que ya importó a mano el respaldo de Kobo tiene esos mismos
+   registros entre los internos. No se borran (nada se borra de verdad), pero
+   tampoco se cuentan como internos: ya están entre los externos. */
+function esKoboImportado(r){
+  return IDS_EXTERNOS.has(r.id) ||
+         (typeof HISTORICO_DISPOSITIVO !== 'undefined' && r.dispositivo === HISTORICO_DISPOSITIVO);
+}
+function internos(){ return activos().filter(r => !esKoboImportado(r)); }
+function segunFuente(fuente){
+  if(fuente === 'externos') return EXTERNOS;
+  if(fuente === 'ambos')    return internos().concat(EXTERNOS);
+  return internos();
+}
+function nombreFuente(r){ return r.externo ? 'externo (Kobo)' : 'interno (app)'; }
+
+let fuentes = Object.assign({historial:'internos', calendario:'ambos'}, lsLeer(LS_FUENTE, {}));
+function pintarSelectoresFuente(){
+  [['filtro-fuente','historial'], ['cal-fuente','calendario']].forEach(([id, tab]) => {
+    const sel = document.getElementById(id);
+    sel.innerHTML = FUENTES.map(f => `<option value="${f.k}">${esc(f.n)}</option>`).join('');
+    sel.value = FUENTES.some(f => f.k === fuentes[tab]) ? fuentes[tab] : 'internos';
+    sel.addEventListener('change', ()=>{
+      fuentes[tab] = sel.value; lsEscribir(LS_FUENTE, fuentes);
+      if(tab === 'historial') renderHistorial(); else renderCalendario();
+    });
+  });
+}
+
 /* Distancia en metros entre dos coordenadas (Haversine). Sirve para avisar
    cuando el árbol que se digitó está lejos de donde está parada la persona:
    es el aviso que más rápido delata un código mal escrito. */
@@ -813,7 +1094,7 @@ document.querySelectorAll('nav button').forEach(btn=>{
     if(btn.dataset.tab === 'recorrido')  renderRecorrido();
     if(btn.dataset.tab === 'historial')  renderHistorial();
     if(btn.dataset.tab === 'calendario') renderCalendario();
-    if(btn.dataset.tab === 'config'){ renderMonitores(); renderEstadoAlmacen(); }
+    if(btn.dataset.tab === 'config'){ renderMonitores(); renderAsignacion(); renderEstadoAlmacen(); }
   });
 });
 function irA(tab){
@@ -877,11 +1158,15 @@ document.getElementById('fenologia').addEventListener('click', (ev)=>{
   // un toque accidental sin recargar el formulario.
   fenologiaActual[fase] = (fenologiaActual[fase] === valor) ? null : valor;
   renderFenologia();
+  renderFotos();
+  actualizarBotonGuardar();
   guardarBorrador();
 });
 document.getElementById('btn-todo-cero').addEventListener('click', ()=>{
   FENOFASES.forEach(({k}) => { fenologiaActual[k] = 0; });
   renderFenologia();
+  renderFotos();
+  actualizarBotonGuardar();
   guardarBorrador();
   toast('Todo en 0. Ahora ajusta solo lo que se vea en el árbol.');
 });
@@ -895,6 +1180,283 @@ function resumenFenologia(f){
   const partes = FENOFASES.filter(({k}) => f[k] > 0).map(({k,n}) => `${n} ${f[k]}%`);
   return partes.length ? partes.join(' · ') : 'sin presencia de ninguna fenofase';
 }
+
+/* =========================================================================
+   FOTO DE LA FLOR O DEL FRUTO — obligatoria con 50 % o más
+   -------------------------------------------------------------------------
+   Con floración o fruto maduro en 50 o más, la app pide la foto antes de
+   guardar. La foto tiene que servir para ver la flor o el fruto, así que:
+   - se explica cómo tomarla (acercarse, tocar para enfocar, no moverse);
+   - la app mide si quedó borrosa y, si lo parece, pide repetirla. Deja usarla
+     igual si a la vista está bien: el detector puede equivocarse con una fruta
+     lisa que llena la foto, y quien está ahí es quien la ve;
+   - si de verdad no se puede tomar (copa muy alta, cámara dañada), se elige el
+     porqué y se guarda sin foto. Así el campo no se queda trabado y en oficina
+     se sabe por qué falta.
+   La imagen se reduce a 2048 px y se guarda en IndexedDB apenas se toma: si la
+   app se cierra antes de guardar el monitoreo, la foto sigue ahí con el borrador.
+   ========================================================================= */
+let fotosActuales = {flor:null, fruto:null};   // ficha de la foto tomada, por órgano
+let sinFotoActual = {flor:'',   fruto:''};     // motivo si no se pudo tomar
+let organoCapturando = null;
+const urlsMiniatura = new Map();               // id de foto → object URL de la miniatura
+
+function organosPedidos(){
+  return ORGANOS.filter(o => (fenologiaActual[o.fase] ?? 0) >= UMBRAL_FOTO);
+}
+// Se muestra el espacio de un órgano si se pide, o si ya hay una foto tomada.
+function organosVisibles(){
+  return ORGANOS.filter(o => (fenologiaActual[o.fase] ?? 0) >= UMBRAL_FOTO || fotosActuales[o.k]);
+}
+function fotoLista(o){
+  const f = fotosActuales[o.k];
+  return f ? (!f.borrosa || f.aceptada) : false;
+}
+function fotosFaltantes(){
+  return organosPedidos().filter(o => !fotoLista(o) && !sinFotoActual[o.k]);
+}
+
+async function urlDeFoto(id){
+  if(urlsMiniatura.has(id)) return urlsMiniatura.get(id);
+  const blob = await fotoLeer(id);
+  if(!blob) return null;
+  const url = URL.createObjectURL(blob);
+  urlsMiniatura.set(id, url);
+  return url;
+}
+
+function renderFotos(){
+  const caja = document.getElementById('foto-bloque');
+  const visibles = organosVisibles();
+  caja.classList.toggle('oculto', !visibles.length);
+  if(!visibles.length){ caja.innerHTML = ''; return; }
+
+  const pedidos = organosPedidos();
+  const titulo = pedidos.length
+    ? `Toma una foto de ${pedidos.map(o => o.n).join(' y de ')}`
+    : 'Foto tomada';
+  caja.innerHTML = `
+    <h3>${esc(titulo)}</h3>
+    ${pedidos.length ? `
+    <div class="hint" style="margin:0;">
+      ${pedidos.map(o => `${o.k === 'flor' ? 'Floración' : 'Fruto maduro'} en ${fenologiaActual[o.fase]} %`).join(' y ')}:
+      con 50 % o más la foto es obligatoria. Tiene que quedar <b>nítida, sin moverse y lo más enfocada posible</b>:
+    </div>
+    <ul>
+      <li>Que la flor o el fruto ocupe la mayor parte de la foto: acércate o busca la rama más baja.</li>
+      <li>Toca la pantalla justo sobre la flor o el fruto para enfocar, y espera a que se vea nítido.</li>
+      <li>Sostén el celular firme con las dos manos, apoya los codos si puedes, y no lo muevas al disparar.</li>
+      <li>Con luz, sin el sol de frente. Revisa la foto: si se ve borrosa o movida, tómala otra vez.</li>
+    </ul>` : ''}
+    ${visibles.map(o => {
+      const f = fotosActuales[o.k];
+      const pedido = pedidos.includes(o);
+      if(f){
+        const estado = f.borrosa
+          ? (f.aceptada
+              ? '<span class="pill warn">la app la vio borrosa; la diste por buena</span>'
+              : '<span class="pill mal">parece borrosa o movida</span>')
+          : '<span class="pill ok">nítida</span>';
+        return `
+          <div class="foto-slot" data-organo="${o.k}">
+            <div class="tit">${esc(o.titulo)}${pedido ? '' : ' <span class="hint">(ya no es obligatoria: la fenofase bajó de 50)</span>'}</div>
+            <div class="fila">
+              <img data-ver="${esc(f.id)}" alt="${esc(o.titulo)}">
+              <div style="flex:1 1 180px;">
+                <div>${estado}</div>
+                <div class="hint">${f.ancho} × ${f.alto} px · ${Math.round((f.bytes||0)/1024)} KB</div>
+                ${f.borrosa && !f.aceptada ? `
+                  <div class="hint" style="color:var(--rojo);">
+                    Así no sirve para ver la flor o el fruto. Tómala de nuevo siguiendo los pasos de arriba.
+                  </div>` : ''}
+                <div class="acciones">
+                  <button type="button" class="btn ${f.borrosa && !f.aceptada ? 'ambar' : 'ghost'} small" data-tomar="${o.k}">Tomar otra</button>
+                  ${f.borrosa && !f.aceptada ? `<button type="button" class="btn ghost small" data-aceptar="${o.k}">La revisé y se ve nítida</button>` : ''}
+                  ${!pedido ? `<button type="button" class="btn ghost small" data-quitar="${o.k}">Quitar</button>` : ''}
+                </div>
+              </div>
+            </div>
+          </div>`;
+      }
+      return `
+        <div class="foto-slot" data-organo="${o.k}">
+          <div class="tit">${esc(o.titulo)}</div>
+          <button type="button" class="btn ambar small" data-tomar="${o.k}">Tomar foto de ${esc(o.n)}</button>
+          <div style="margin-top:8px;">
+            <label style="font-weight:400; font-size:.8rem; color:#6b7368;">¿No se pudo tomar? Elige por qué:</label>
+            <select data-sinfoto="${o.k}">
+              <option value="">Sí se va a tomar</option>
+              ${MOTIVOS_SIN_FOTO.map(m => `<option ${sinFotoActual[o.k] === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}
+            </select>
+          </div>
+        </div>`;
+    }).join('')}`;
+
+  caja.querySelectorAll('img[data-ver]').forEach(async img => {
+    const url = await urlDeFoto(img.dataset.ver);
+    if(url) img.src = url;
+    else img.replaceWith(Object.assign(document.createElement('div'),
+      {className:'hint', textContent:'La imagen no está en este celular.'}));
+  });
+}
+
+document.getElementById('foto-bloque').addEventListener('click', async (ev)=>{
+  const tomar = ev.target.closest('[data-tomar]');
+  if(tomar){
+    organoCapturando = tomar.dataset.tomar;
+    const input = document.getElementById('input-foto');
+    input.value = '';
+    input.click();
+    return;
+  }
+  const aceptar = ev.target.closest('[data-aceptar]');
+  if(aceptar){
+    const f = fotosActuales[aceptar.dataset.aceptar];
+    if(!f) return;
+    if(!confirm('¿Revisaste la foto en grande y se ve nítida la flor o el fruto?\n\nSi está borrosa no sirve: es mejor tomarla de nuevo.')) return;
+    f.aceptada = true;
+    renderFotos(); actualizarBotonGuardar(); guardarBorrador();
+    return;
+  }
+  const quitar = ev.target.closest('[data-quitar]');
+  if(quitar){
+    const f = fotosActuales[quitar.dataset.quitar];
+    if(f){ fotoBorrar(f.id); fotosActuales[quitar.dataset.quitar] = null; }
+    renderFotos(); actualizarBotonGuardar(); guardarBorrador();
+    return;
+  }
+  const ver = ev.target.closest('img[data-ver]');
+  if(ver) abrirVisor(ver.dataset.ver, ver.alt);
+});
+document.getElementById('foto-bloque').addEventListener('change', (ev)=>{
+  const s = ev.target.closest('select[data-sinfoto]');
+  if(!s) return;
+  sinFotoActual[s.dataset.sinfoto] = s.value;
+  actualizarBotonGuardar(); guardarBorrador();
+});
+
+document.getElementById('input-foto').addEventListener('change', async (ev)=>{
+  const file = ev.target.files && ev.target.files[0];
+  const organo = organoCapturando;
+  organoCapturando = null;
+  if(!file || !organo) return;
+
+  const slot = document.querySelector(`#foto-bloque .foto-slot[data-organo="${organo}"]`);
+  if(slot) slot.insertAdjacentHTML('beforeend', '<div class="hint">Revisando la foto…</div>');
+  try{
+    const r = await procesarFoto(file);
+    const id = uuid();
+    if(!await fotoGuardar(id, r.blob)){
+      alert('No se pudo guardar la foto en el celular (¿sin espacio o modo incógnito?). Tómala de nuevo o libera espacio.');
+      renderFotos();
+      return;
+    }
+    // La foto anterior de este órgano nunca llegó a un monitoreo guardado: se reemplaza.
+    const previa = fotosActuales[organo];
+    if(previa){
+      fotoBorrar(previa.id);
+      if(urlsMiniatura.has(previa.id)){ URL.revokeObjectURL(urlsMiniatura.get(previa.id)); urlsMiniatura.delete(previa.id); }
+    }
+    fotosActuales[organo] = normalizarFoto({
+      id, organo, ancho:r.ancho, alto:r.alto, bytes:r.blob.size,
+      nitidez: Math.round(r.nitidez), borrosa: r.nitidez < UMBRAL_NITIDEZ,
+      aceptada:false, tomadaEn: ahora()
+    });
+    sinFotoActual[organo] = '';
+    renderFotos(); actualizarBotonGuardar(); guardarBorrador();
+    toast(r.nitidez < UMBRAL_NITIDEZ ? 'La foto parece borrosa: tómala de nuevo.' : 'Foto guardada.');
+  }catch(e){
+    alert('No se pudo leer la foto. Intenta tomarla de nuevo.');
+    renderFotos();
+  }
+});
+
+async function cargarImagen(file){
+  if(self.createImageBitmap){
+    try{ return await createImageBitmap(file, {imageOrientation:'from-image'}); }catch(e){}
+  }
+  return await new Promise((res, rej) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload  = () => { URL.revokeObjectURL(url); res(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('imagen ilegible')); };
+    img.src = url;
+  });
+}
+async function procesarFoto(file){
+  const img = await cargarImagen(file);
+  const w0 = img.naturalWidth || img.width, h0 = img.naturalHeight || img.height;
+  const k = Math.min(1, FOTO_LADO_MAX / Math.max(w0, h0));
+  const w = Math.round(w0 * k), h = Math.round(h0 * k);
+  const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  cv.getContext('2d').drawImage(img, 0, 0, w, h);
+  const nitidez = medirNitidez(img, w0, h0);
+  if(img.close) img.close();
+  const blob = await new Promise((res, rej) =>
+    cv.toBlob(b => b ? res(b) : rej(new Error('no se pudo comprimir')), 'image/jpeg', FOTO_CALIDAD));
+  return {blob, ancho:w, alto:h, nitidez};
+}
+
+/* Nitidez de una foto, sin librerías. La foto se reduce a 1024 px y se pasa a
+   gris; se parte en 4 × 4 cuadros y en cada uno se mide cuánto cambia el brillo
+   de un píxel al siguiente (varianza de la segunda derivada), por separado en
+   horizontal, vertical y las dos diagonales, y se queda con la MENOR: una foto
+   movida conserva el detalle en un sentido y lo pierde en el del movimiento.
+   La nota es la del cuadro más nítido, porque una flor enfocada con el fondo
+   borroso es una foto buena. Ver UMBRAL_NITIDEZ para la calibración. */
+function medirNitidez(img, w0, h0){
+  const LADO = 1024;
+  const k = Math.min(1, LADO / Math.max(w0, h0));
+  const w = Math.max(16, Math.round(w0 * k)), h = Math.max(16, Math.round(h0 * k));
+  const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d', {willReadFrequently:true});
+  ctx.drawImage(img, 0, 0, w, h);
+  const px = ctx.getImageData(0, 0, w, h).data;
+  const g = new Float32Array(w * h);
+  for(let i = 0, j = 0; i < g.length; i++, j += 4) g[i] = 0.299*px[j] + 0.587*px[j+1] + 0.114*px[j+2];
+
+  let mejor = 0;
+  for(let ty = 0; ty < 4; ty++){
+    for(let tx = 0; tx < 4; tx++){
+      const y0 = Math.max(1, Math.floor(ty * h / 4)), y1 = Math.min(h - 1, Math.floor((ty + 1) * h / 4));
+      const x0 = Math.max(1, Math.floor(tx * w / 4)), x1 = Math.min(w - 1, Math.floor((tx + 1) * w / 4));
+      // Cuatro sentidos: horizontal, vertical y las dos diagonales.
+      const s = [0,0,0,0], ss = [0,0,0,0];
+      let n = 0;
+      for(let y = y0; y < y1; y++){
+        for(let x = x0; x < x1; x++){
+          const i = y * w + x, c2 = 2 * g[i];
+          const d = [c2 - g[i - 1]     - g[i + 1],
+                     c2 - g[i - w]     - g[i + w],
+                     c2 - g[i - w - 1] - g[i + w + 1],
+                     c2 - g[i - w + 1] - g[i + w - 1]];
+          for(let k = 0; k < 4; k++){ s[k] += d[k]; ss[k] += d[k] * d[k]; }
+          n++;
+        }
+      }
+      if(!n) continue;
+      const v = s.map((sk, k) => ss[k] / n - (sk / n) ** 2);
+      mejor = Math.max(mejor, Math.min(...v));
+    }
+  }
+  return mejor;
+}
+
+// ---------- Visor de fotos en grande ----------
+async function abrirVisor(id, pie){
+  const v = document.getElementById('visor');
+  const url = await urlDeFoto(id);
+  if(!url){ alert('La imagen no está en este celular: se tomó en otro dispositivo.'); return; }
+  v.innerHTML = `<img src="${url}" alt=""><div class="pie">${esc(pie || '')}</div>
+    <button type="button" class="btn ambar small">Cerrar</button>`;
+  v.classList.remove('oculto');
+}
+document.getElementById('visor').addEventListener('click', ()=>{
+  const v = document.getElementById('visor');
+  v.classList.add('oculto'); v.innerHTML = '';
+});
 
 /* =========================================================================
    CÓDIGO DEL ÁRBOL — el campo que más cuesta cuando sale mal
@@ -922,7 +1484,7 @@ function rondaElegida(){ return document.getElementById('ronda').value; }
 
 function monitoreoDeLaRonda(codigo, ronda){
   if(!ronda || !codigo) return null;
-  return activos().find(r => r.codigoArbol === codigo && r.ronda === ronda) || null;
+  return segunFuente('ambos').find(r => r.codigoArbol === codigo && r.ronda === ronda) || null;
 }
 
 /* La ronda por defecto es el mes de la fecha; la alternativa es el mes anterior,
@@ -1069,8 +1631,7 @@ function renderArbolInfo(){
   const btnPredio = document.getElementById('btn-corregir-predio');
   if(btnPredio) btnPredio.addEventListener('click', ()=>{
     document.getElementById('predio').value = a.p;
-    prefs.predio = a.p; guardarPrefs();
-    evaluarCodigo();
+    alCambiarPredioAMano();
   });
 }
 
@@ -1131,36 +1692,214 @@ inputCodigo.addEventListener('input', ()=>{
   evaluarCodigo();
 });
 
-document.getElementById('predio').addEventListener('change', (ev)=>{
-  prefs.predio = ev.target.value; guardarPrefs();
+/* ---------- Predio ↔ quien registra ----------
+   Elegir el predio llena quien registra, y elegir la persona llena su predio,
+   según la asignación de Configuración. Tres cuidados:
+   1. A quien no tiene predio fijo (el que hace la ronda en todos) no se le
+      cambia el nombre al pasar de un predio a otro.
+   2. Si alguien corrige a mano lo que la app acaba de llenar, la app no
+      «devuelve» el cambio en el otro campo: corregir el nombre no mueve el
+      predio, y corregir el predio no mueve el nombre. Sin esto, quien ayuda en
+      el predio de otro quedaría atrapado en un ida y vuelta.
+   3. Todo va por la asignación del predio, nunca por el parecido del nombre. */
+function avisoAsignacion(texto){
+  const h = document.getElementById('monitor-hint');
+  h.innerHTML = texto || `Se llena solo al elegir el predio, y el predio al elegir la persona, según
+    <b>Configuración → Quién registra en cada predio</b>.`;
+}
+function alCambiarPredioAMano(){
+  const venia = prefs.predioAuto === true;
+  prefs.predio = predioElegido(); prefs.predioAuto = false;
+  const sel = document.getElementById('monitor');
+  const asignado = asignacion[prefs.predio] || '';
+  const actual = sel.value;
+  if(!venia && asignado && asignado !== actual && monitores.includes(asignado) &&
+     (!actual || prefs.monitorAuto === true || prediosDe(actual).length > 0)){
+    sel.value = asignado;
+    prefs.monitor = asignado; prefs.monitorAuto = true;
+    avisoAsignacion(`Se llenó solo: <b>${esc(asignado)}</b> registra en este predio. Si hoy registra otra persona, cámbialo.`);
+  }else{
+    avisoAsignacion();
+  }
+  guardarPrefs();
   evaluarCodigo();
-});
+}
+function alCambiarMonitorAMano(){
+  const venia = prefs.monitorAuto === true;
+  prefs.monitor = document.getElementById('monitor').value; prefs.monitorAuto = false;
+  const persona = prefs.monitor;
+  const suyos = prediosDe(persona);
+  const predio = predioElegido();
+  const delPredio = asignacion[predio] || '';
+  avisoAsignacion();
+  if(!venia && suyos.length === 1 && suyos[0] !== predio &&
+     (!predio || prefs.predioAuto === true || (delPredio && delPredio !== persona))){
+    document.getElementById('predio').value = suyos[0];
+    prefs.predio = suyos[0]; prefs.predioAuto = true;
+    avisoAsignacion(`Se llenó el predio: <b>${esc(suyos[0])}</b> es el de ${esc(persona)}. Si hoy registra en otro, cámbialo.`);
+    evaluarCodigo();
+  }else if(suyos.length > 1 && !suyos.includes(predio)){
+    avisoAsignacion(`${esc(persona)} registra en ${suyos.map(esc).join(', ')}. Elige en cuál estás.`);
+  }
+  guardarPrefs();
+  guardarBorrador();
+}
+document.getElementById('predio').addEventListener('change', alCambiarPredioAMano);
 document.getElementById('fecha').addEventListener('change', ()=>{
   pintarRondas(); renderArbolInfo(); guardarBorrador();
 });
 document.getElementById('ronda').addEventListener('change', ()=>{ renderArbolInfo(); guardarBorrador(); });
-document.getElementById('monitor').addEventListener('change', (ev)=>{
-  prefs.monitor = ev.target.value; guardarPrefs(); guardarBorrador();
-});
+document.getElementById('monitor').addEventListener('change', alCambiarMonitorAMano);
 document.getElementById('clima').addEventListener('change', (ev)=>{
   prefs.clima = ev.target.value; guardarPrefs(); guardarBorrador();
 });
 
 /* ---------- Estado fitosanitario ----------
-   Sano es excluyente: un árbol no puede estar sano y con hongos a la vez. */
+   Sano es excluyente: un árbol no puede estar sano y con hongos a la vez.
+   Y va sincronizado con las observaciones de daño (OBS_SALUD):
+   - con «Sano» marcado, esas notas se apagan y, si ya estaban escritas, se quitan;
+   - tocar una de esas notas marca su estado y quita «Sano»;
+   - desmarcar un estado quita las notas que lo afirmaban. */
+function notasDeObservaciones(){
+  return document.getElementById('observaciones').value.split('. ').map(s => s.trim()).filter(Boolean);
+}
+function quitarNotas(quitar){
+  const ta = document.getElementById('observaciones');
+  const antes = notasDeObservaciones();
+  const despues = antes.filter(n => !quitar.includes(n));
+  if(despues.length === antes.length) return [];
+  ta.value = despues.join('. ');
+  return antes.filter(n => quitar.includes(n));
+}
+function marcarFito(valor, marcado){
+  const c = document.querySelector(`#fitosanitario input[value="${CSS.escape(valor)}"]`);
+  if(c) c.checked = marcado;
+}
 document.getElementById('fitosanitario').addEventListener('change', (ev)=>{
   const cajas = Array.from(document.querySelectorAll('#fitosanitario input'));
+  let quitadas = [];
   if(ev.target.value === 'Sano' && ev.target.checked){
     cajas.forEach(c => { if(c.value !== 'Sano') c.checked = false; });
+    quitadas = quitarNotas(Object.keys(OBS_SALUD));
   }else if(ev.target.checked){
-    const sano = cajas.find(c => c.value === 'Sano');
-    if(sano) sano.checked = false;
+    marcarFito('Sano', false);
+  }else{
+    quitadas = quitarNotas(Object.keys(OBS_SALUD).filter(n => OBS_SALUD[n] === ev.target.value));
   }
+  if(quitadas.length) toast(`Se quitó de observaciones: «${quitadas.join('», «')}».`);
+  renderChipsObs();
   actualizarBotonGuardar();
   guardarBorrador();
 });
 function fitosanitarioElegido(){
   return Array.from(document.querySelectorAll('#fitosanitario input:checked')).map(c => c.value);
+}
+/* Contradicciones escritas a mano: «Sano» con una palabra de daño en el texto.
+   No bloquea —puede decir «sin hongos»—, pero se pregunta antes de guardar. */
+function danoEscritoConSano(){
+  if(!fitosanitarioElegido().includes('Sano')) return [];
+  const txt = normalizar(document.getElementById('observaciones').value);
+  return PALABRAS_DANO.filter(p => txt.includes(p));
+}
+
+/* ---------- Fauna en el árbol ----------
+   «¿Vio algún animal?» es obligatoria y de un toque. Con «Sí» se abre la ficha
+   del animal: el tipo (lista cerrada, para poder contar), el nombre como lo
+   conocen en la vereda (se escribe) y qué estaba haciendo. Se puede añadir más
+   de un animal: en un mismo árbol pueden comer micos y aves a la vez. */
+let vioAnimalActual  = null;   // null = sin responder
+let animalesActuales = [];
+
+function animalVacio(){ return {tipo:'', nombre:'', conducta:'', conductaOtra:''}; }
+
+function renderFauna(){
+  document.querySelectorAll('#vio-animal button').forEach(b => {
+    b.classList.toggle('sel', (b.dataset.vio === 'si' && vioAnimalActual === true) ||
+                              (b.dataset.vio === 'no' && vioAnimalActual === false));
+  });
+  const cont = document.getElementById('animales');
+  document.getElementById('btn-otro-animal').classList.toggle('oculto', vioAnimalActual !== true);
+  if(vioAnimalActual !== true){ cont.innerHTML = ''; return; }
+
+  cont.innerHTML = animalesActuales.map((a, i) => `
+    <div class="animal-caja" data-i="${i}">
+      <div class="cab">
+        <b>${animalesActuales.length > 1 ? `Animal ${i + 1}` : 'El animal'}</b>
+        ${animalesActuales.length > 1 ? `<button type="button" class="cerrar" data-quitar-animal="${i}" title="Quitar">&#10005;</button>` : ''}
+      </div>
+      <div class="sub-campo">
+        <label>¿Qué animal vio?</label>
+        <div class="opciones">
+          ${ANIMALES.map(t => `<button type="button" data-tipo="${esc(t)}" class="${a.tipo === t ? 'sel' : ''}">${esc(t)}</button>`).join('')}
+        </div>
+      </div>
+      ${a.tipo ? `
+      <div class="sub-campo">
+        <label>Nombre del animal</label>
+        <input type="text" data-campo="nombre" value="${esc(a.nombre)}" autocomplete="off"
+               placeholder="Ej.: tucán, mico maicero">
+        <div class="hint">Como lo conocen en la vereda. Si no sabes cómo se llama, escribe «no sé».</div>
+      </div>
+      <div class="sub-campo">
+        <label>¿Qué estaba haciendo el animal?</label>
+        <div class="opciones">
+          ${CONDUCTAS.map(c => `<button type="button" data-conducta="${esc(c)}" class="${a.conducta === c ? 'sel' : ''}">${esc(c)}</button>`).join('')}
+        </div>
+        ${a.conducta === 'Otra' ? `
+          <input type="text" data-campo="conductaOtra" value="${esc(a.conductaOtra)}" autocomplete="off"
+                 placeholder="¿Qué estaba haciendo?" style="margin-top:8px;">` : ''}
+      </div>` : ''}
+    </div>`).join('');
+}
+document.getElementById('vio-animal').addEventListener('click', (ev)=>{
+  const b = ev.target.closest('button[data-vio]');
+  if(!b) return;
+  vioAnimalActual = b.dataset.vio === 'si';
+  if(vioAnimalActual && !animalesActuales.length) animalesActuales = [animalVacio()];
+  renderFauna(); actualizarBotonGuardar(); guardarBorrador();
+});
+document.getElementById('btn-otro-animal').addEventListener('click', ()=>{
+  animalesActuales.push(animalVacio());
+  renderFauna(); actualizarBotonGuardar(); guardarBorrador();
+});
+document.getElementById('animales').addEventListener('click', (ev)=>{
+  const caja = ev.target.closest('.animal-caja');
+  if(!caja) return;
+  const a = animalesActuales[Number(caja.dataset.i)];
+  const quitar = ev.target.closest('[data-quitar-animal]');
+  if(quitar){ animalesActuales.splice(Number(quitar.dataset.quitarAnimal), 1); }
+  else if(ev.target.closest('[data-tipo]'))     a.tipo = ev.target.closest('[data-tipo]').dataset.tipo;
+  else if(ev.target.closest('[data-conducta]')) a.conducta = ev.target.closest('[data-conducta]').dataset.conducta;
+  else return;
+  renderFauna(); actualizarBotonGuardar(); guardarBorrador();
+});
+// Lo escrito no repinta (se perdería el cursor): solo actualiza el estado.
+document.getElementById('animales').addEventListener('input', (ev)=>{
+  const caja = ev.target.closest('.animal-caja');
+  const campo = ev.target.dataset.campo;
+  if(!caja || !campo) return;
+  animalesActuales[Number(caja.dataset.i)][campo] = ev.target.value;
+  actualizarBotonGuardar(); guardarBorrador();
+});
+function faunaFaltante(){
+  if(vioAnimalActual === null) return ['¿Vio algún animal en el árbol?'];
+  if(vioAnimalActual === false) return [];
+  const faltas = [];
+  animalesActuales.forEach((a, i) => {
+    const cual = animalesActuales.length > 1 ? ` (animal ${i + 1})` : '';
+    if(!a.tipo) faltas.push('Qué animal vio' + cual);
+    if(a.tipo && !a.nombre.trim()) faltas.push('Nombre del animal' + cual);
+    if(a.tipo && !a.conducta) faltas.push('Qué estaba haciendo' + cual);
+    if(a.conducta === 'Otra' && !a.conductaOtra.trim()) faltas.push('Cuál otra cosa estaba haciendo' + cual);
+  });
+  return faltas;
+}
+function resumenFauna(r){
+  if(r.vioAnimal === false) return 'No vio animales';
+  if(r.vioAnimal !== true) return '';
+  return r.animales.map(a =>
+    `${a.tipo}${a.nombre ? ` (${a.nombre})` : ''}: ${a.conducta === 'Otra' ? (a.conductaOtra || 'otra') : a.conducta.toLowerCase()}`
+  ).join(' · ');
 }
 
 // ---------- Cambio de placa ----------
@@ -1170,15 +1909,30 @@ document.getElementById('cambio-placa').addEventListener('change', (ev)=>{
 });
 
 // ---------- Chips de observaciones ----------
-document.getElementById('chips-obs').innerHTML =
-  OBS_FRECUENTES.map(o => `<button type="button" data-obs="${esc(o)}">${esc(o)}</button>`).join('');
+function renderChipsObs(){
+  const sano = fitosanitarioElegido().includes('Sano');
+  document.getElementById('chips-obs').innerHTML = OBS_FRECUENTES.map(o => {
+    const estado = OBS_SALUD[o];
+    return `<button type="button" data-obs="${esc(o)}"
+      ${estado ? `class="salud" title="Marca «${esc(estado)}» en el estado fitosanitario"` : ''}
+      ${estado && sano ? 'disabled' : ''}>${esc(o)}</button>`;
+  }).join('');
+}
 document.getElementById('chips-obs').addEventListener('click', (ev)=>{
   const b = ev.target.closest('button[data-obs]');
-  if(!b) return;
+  if(!b || b.disabled) return;
   const ta = document.getElementById('observaciones');
   const actual = ta.value.trim();
   const nueva = b.dataset.obs;
-  if(actual.split('. ').map(s=>s.trim()).includes(nueva)) return;   // no repetir la misma nota
+  const estado = OBS_SALUD[nueva];
+  if(estado && !fitosanitarioElegido().includes(estado)){
+    marcarFito('Sano', false);
+    marcarFito(estado, true);
+    toast(`Se marcó «${estado}» en el estado fitosanitario.`);
+    renderChipsObs();
+    actualizarBotonGuardar();
+  }
+  if(actual.split('. ').map(s=>s.trim()).includes(nueva)){ guardarBorrador(); return; }   // no repetir la misma nota
   ta.value = actual ? `${actual}. ${nueva}` : nueva;
   guardarBorrador();
 });
@@ -1203,10 +1957,15 @@ function escribirBorrador(){
     fitosanitario: fitosanitarioElegido(),
     cambioPlaca:   document.getElementById('cambio-placa').checked,
     placaAnterior: document.getElementById('placa-anterior').value,
-    observaciones: document.getElementById('observaciones').value
+    observaciones: document.getElementById('observaciones').value,
+    fotos:         fotosActuales,      // solo las fichas: la imagen ya está en IndexedDB
+    sinFoto:       sinFotoActual,
+    vioAnimal:     vioAnimalActual,
+    animales:      animalesActuales
   };
   const vacio = !b.codigo && !b.observaciones && !b.fitosanitario.length &&
-                FENOFASES.every(({k}) => b.fenologia[k] === null);
+                FENOFASES.every(({k}) => b.fenologia[k] === null) &&
+                !b.fotos.flor && !b.fotos.fruto && b.vioAnimal === null;
   if(vacio) lsEscribir(LS_BORRADOR, null); else lsEscribir(LS_BORRADOR, b);
 }
 function guardarBorrador(){
@@ -1236,9 +1995,20 @@ function restaurarBorrador(){
     document.getElementById('placa-anterior-caja').classList.remove('oculto');
     document.getElementById('placa-anterior').value = b.placaAnterior || '';
   }
+  ORGANOS.forEach(o => {
+    fotosActuales[o.k] = b.fotos ? normalizarFoto(b.fotos[o.k]) : null;
+    sinFotoActual[o.k] = (b.sinFoto && MOTIVOS_SIN_FOTO.includes(b.sinFoto[o.k])) ? b.sinFoto[o.k] : '';
+  });
+  vioAnimalActual  = b.vioAnimal === true ? true : b.vioAnimal === false ? false : null;
+  animalesActuales = Array.isArray(b.animales)
+    ? b.animales.map(a => Object.assign(animalVacio(), a)) : [];
+  if(vioAnimalActual && !animalesActuales.length) animalesActuales = [animalVacio()];
   arbolManual = b.manual || null;
   if(b.codigo) inputCodigo.value = b.codigo;
   renderFenologia();
+  renderFotos();
+  renderChipsObs();
+  renderFauna();
   evaluarCodigo();
 }
 
@@ -1340,7 +2110,8 @@ document.addEventListener('visibilitychange', ()=>{
 function listoParaGuardar(){
   return !!(predioElegido() && document.getElementById('monitor').value &&
             document.getElementById('fecha').value && document.getElementById('clima').value &&
-            (arbolElegido || arbolManual) && fenologiaCompleta() && fitosanitarioElegido().length);
+            (arbolElegido || arbolManual) && fenologiaCompleta() && fitosanitarioElegido().length &&
+            !fotosFaltantes().length && !faunaFaltante().length);
 }
 function actualizarBotonGuardar(){
   document.getElementById('btn-guardar').disabled = !listoParaGuardar();
@@ -1361,6 +2132,23 @@ document.getElementById('form-monitoreo').addEventListener('submit', (ev)=>{
   const fito = fitosanitarioElegido();
   if(!fito.length){ alert('Falta el estado fitosanitario.'); return; }
 
+  const faltanFotos = fotosFaltantes();
+  if(faltanFotos.length){
+    const borrosas = faltanFotos.filter(o => fotosActuales[o.k]);
+    alert(borrosas.length
+      ? `La foto de ${borrosas.map(o => o.n).join(' y de ')} parece borrosa. Tómala de nuevo, o confirma que la revisaste y se ve nítida.`
+      : `Con 50 % o más hay que tomar la foto de ${faltanFotos.map(o => o.n).join(' y de ')}.\n\nSi de verdad no se puede, elige el motivo debajo del botón de la foto.`);
+    return;
+  }
+  const faltaFauna = faunaFaltante();
+  if(faltaFauna.length){
+    alert('Falta responder sobre los animales:\n\n• ' + faltaFauna.join('\n• '));
+    return;
+  }
+  const dano = danoEscritoConSano();
+  if(dano.length && !confirm(`Marcaste «Sano», pero en observaciones aparece «${dano.join('», «')}».\n\n` +
+                             '¿Está bien así? Cancela para corregir el estado fitosanitario o la observación.')) return;
+
   const a = arbolElegido;
   const cambio = document.getElementById('cambio-placa').checked;
   const anterior = document.getElementById('placa-anterior').value.trim();
@@ -1368,6 +2156,12 @@ document.getElementById('form-monitoreo').addEventListener('submit', (ev)=>{
     alert('Marcaste cambio de placa: escribe el código de la placa anterior.');
     return;
   }
+
+  // Solo las fotos que se ven en pantalla: las de órganos que ya no aplican se quitaron.
+  const fotos = organosVisibles().map(o => fotosActuales[o.k]).filter(Boolean);
+  const sinFoto = organosPedidos()
+    .filter(o => !fotosActuales[o.k] && sinFotoActual[o.k])
+    .map(o => ({organo:o.k, motivo:sinFotoActual[o.k]}));
 
   const reg = normalizarRegistro({
     fecha:               document.getElementById('fecha').value,
@@ -1384,6 +2178,10 @@ document.getElementById('form-monitoreo').addEventListener('submit', (ev)=>{
     cambioPlaca:         cambio,
     placaAnterior:       cambio ? anterior : '',
     observaciones:       document.getElementById('observaciones').value.trim(),
+    fotos,
+    sinFoto,
+    vioAnimal:           vioAnimalActual,
+    animales:            vioAnimalActual ? animalesActuales : [],
     monitor:             document.getElementById('monitor').value
   });
 
@@ -1413,7 +2211,13 @@ document.getElementById('form-monitoreo').addEventListener('submit', (ev)=>{
   document.getElementById('placa-anterior').value = '';
   document.getElementById('placa-anterior-caja').classList.add('oculto');
   document.getElementById('observaciones').value = '';
+  fotosActuales = {flor:null, fruto:null};   // ya quedaron en el registro: no se borran
+  sinFotoActual = {flor:'', fruto:''};
+  vioAnimalActual = null; animalesActuales = [];
   renderFenologia();
+  renderFotos();
+  renderChipsObs();
+  renderFauna();
   evaluarCodigo();
   limpiarBorrador();
 
@@ -1429,9 +2233,12 @@ document.getElementById('form-monitoreo').addEventListener('submit', (ev)=>{
    Es la forma de no digitar el código: se toca el árbol de la lista. También
    es el control de avance del mes, que es lo que se reporta.
    ========================================================================= */
+/* El avance cuenta internos y externos: para saber si un árbol ya se hizo en
+   una ronda da igual con qué se registró. Para las rondas de abril a agosto
+   de 2026, lo hecho está en los externos. */
 function pendientesDelPredio(predio, ronda){
   const del = ARBOLES_POR_PREDIO.get(predio) || [];
-  const hechos = new Set(activos().filter(r => r.ronda === ronda).map(r => r.codigoArbol));
+  const hechos = new Set(segunFuente('ambos').filter(r => r.ronda === ronda).map(r => r.codigoArbol));
   return del.filter(a => !hechos.has(a.c)).length;
 }
 
@@ -1450,7 +2257,9 @@ function renderRecorrido(){
 
   const del = (ARBOLES_POR_PREDIO.get(predio) || []).slice();
   const hechos = new Map();
-  activos().filter(r => r.ronda === mes).forEach(r => hechos.set(r.codigoArbol, r));
+  // Externos primero: si el árbol también tiene registro interno, gana el interno.
+  segunFuente('externos').concat(internos()).filter(r => r.ronda === mes)
+    .forEach(r => hechos.set(r.codigoArbol, r));
 
   const listos = del.filter(a => hechos.has(a.c)).length;
   const pct = del.length ? Math.round(listos/del.length*100) : 0;
@@ -1472,7 +2281,7 @@ function renderRecorrido(){
         <div class="cod">${esc(a.c)}</div>
         <div class="nm">${esc(a.n)}<small>${esc(a.s)}</small></div>
         <div>${r
-          ? `<span class="pill ok">✓ ${esc(r.fecha)}</span>`
+          ? `<span class="pill ok">✓ ${esc(r.fecha)}</span>${r.externo ? ' <span class="pill warn" title="Registrado en Kobo, antes de la app">Kobo</span>' : ''}`
           : '<span class="pill warn">pendiente</span>'}</div>
         <button type="button" class="btn ghost small" data-ir="${esc(a.c)}">${r ? 'Repetir' : 'Registrar'}</button>
       </div>`;
@@ -1484,10 +2293,10 @@ document.getElementById('recorrido-lista').addEventListener('click', (ev)=>{
   if(!b) return;
   const predio = document.getElementById('recorrido-predio').value;
   document.getElementById('predio').value = predio;
-  prefs.predio = predio; guardarPrefs();
+  arbolManual = null;
   inputCodigo.value = b.dataset.ir;
   irA('registro');
-  evaluarCodigo();
+  alCambiarPredioAMano();   // llena quien registra y evalúa el código
   window.scrollTo({top:0, behavior:'smooth'});
 });
 ['recorrido-predio','recorrido-mes','recorrido-buscar'].forEach(id => {
@@ -1496,44 +2305,69 @@ document.getElementById('recorrido-lista').addEventListener('click', (ev)=>{
 });
 
 // ---------- Historial ----------
-function renderHistorial(){
-  const tbody = document.querySelector('#tabla-historial tbody');
-  const vacio = document.getElementById('historial-vacio');
+/* Lo que muestra el historial (y lo que exportan CSV y GeoJSON): la fuente
+   elegida, con los filtros de predio y texto. */
+function registrosDelHistorial(){
+  const fuente  = document.getElementById('filtro-fuente').value || 'internos';
   const fPredio = document.getElementById('filtro-predio').value;
   const fTexto  = normalizar(document.getElementById('filtro-texto').value);
-
-  const lista = activos()
+  return segunFuente(fuente)
     .filter(r => !fPredio || r.predio === fPredio)
     .filter(r => !fTexto || r.codigoArbol.includes(fTexto) ||
                  normalizar(r.nombreComun).includes(fTexto) ||
                  normalizar(r.nombreCientifico).includes(fTexto))
     .sort((a,b) => (b.fecha || '').localeCompare(a.fecha || '') ||
                    (b.creadoEn || '').localeCompare(a.creadoEn || ''));
+}
+const NOMBRE_ORGANO = {flor:'flor', fruto:'fruto maduro'};
 
-  vacio.classList.toggle('oculto', activos().length > 0);
+function renderHistorial(){
+  const tbody = document.querySelector('#tabla-historial tbody');
+  const vacio = document.getElementById('historial-vacio');
+  const fuente = document.getElementById('filtro-fuente').value || 'internos';
+  const lista = registrosDelHistorial();
+
+  const nInt = internos().length;
+  vacio.textContent = fuente === 'internos'
+    ? 'Todavía no hay monitoreos guardados en este dispositivo. Los de Kobo (abril a agosto) se ven eligiendo «Externos».'
+    : 'Ningún monitoreo coincide con los filtros.';
+  vacio.classList.toggle('oculto', lista.length > 0);
+  document.getElementById('historial-resumen').textContent = lista.length
+    ? `${lista.length} monitoreo(s) a la vista · en este celular hay ${nInt} interno(s) y la app trae ${EXTERNOS.length} externo(s) de Kobo.`
+    : '';
 
   tbody.innerHTML = lista.map(r => {
-    const p = puntoDe(r.id);
+    const p = r.externo ? null : puntoDe(r.id);
+    const fauna = resumenFauna(r);
     return `
       <tr>
         <td>${esc(r.fecha)}${r.ronda !== (r.fecha||'').slice(0,7)
-          ? `<div class="hint">ronda ${esc(MESES[Number(r.ronda.slice(5,7))-1] || '')}</div>` : ''}</td>
+          ? `<div class="hint">ronda ${esc(MESES[Number(r.ronda.slice(5,7))-1] || '')}</div>` : ''}
+          ${r.externo ? '<div><span class="pill warn" title="Registrado en Kobo, antes de la app">Kobo</span></div>' : ''}</td>
         <td class="mono"><b>${esc(r.codigoArbol)}</b>${r.enBase ? '' : ' <span class="pill warn">nuevo</span>'}</td>
         <td>${esc(r.nombreComun)}<br><span class="cientifico hint" style="margin:0;">${esc(r.nombreCientifico)}</span></td>
-        <td>${esc(r.predio)}</td>
+        <td>${esc(r.predio)}${r.monitor ? `<div class="hint">${esc(r.monitor)}</div>` : ''}</td>
         <td>${esc(resumenFenologia(r.fenologia))}</td>
         <td>${(r.estadoFitosanitario||[]).map(e => `<span class="badge">${esc(e)}</span>`).join('')}
             ${r.cambioPlaca ? `<div class="hint">placa anterior: ${esc(r.placaAnterior)}</div>` : ''}
-            ${r.observaciones ? `<div class="hint">${esc(r.observaciones)}</div>` : ''}</td>
-        <td>${p
+            ${r.observaciones ? `<div class="hint">${esc(r.observaciones)}</div>` : ''}
+            ${fauna ? `<div class="hint"><b>Fauna:</b> ${esc(fauna)}</div>` : ''}
+            ${(r.fotos||[]).map(f => `<button type="button" class="btn ghost small" style="margin-top:4px;"
+                 data-foto="${esc(f.id)}" data-pie="${esc(`${r.codigoArbol} — ${NOMBRE_ORGANO[f.organo]} — ${r.fecha}`)}">Ver foto ${esc(NOMBRE_ORGANO[f.organo])}</button>`).join(' ')}
+            ${(r.sinFoto||[]).map(s => `<div class="hint">Sin foto de ${esc(NOMBRE_ORGANO[s.organo] || s.organo)}: ${esc(s.motivo)}</div>`).join('')}</td>
+        <td>${r.externo
+          ? '<span class="hint">—</span>'
+          : p
           ? `<span class="mono" style="font-size:.75rem;">${p.latitud.toFixed(5)}<br>${p.longitud.toFixed(5)}</span>${
               p.precisionM != null ? `<div class="hint">±${p.precisionM} m</div>` : ''}`
           : `<button type="button" class="btn ghost small" data-gps="${r.id}">Tomar GPS</button>`}</td>
-        <td><button type="button" class="cerrar" data-del="${r.id}" title="Eliminar">&#10005;</button></td>
+        <td>${r.externo ? '' : `<button type="button" class="cerrar" data-del="${r.id}" title="Eliminar">&#10005;</button>`}</td>
       </tr>`;
   }).join('');
 }
 document.querySelector('#tabla-historial tbody').addEventListener('click', (ev)=>{
+  const foto = ev.target.closest('[data-foto]');
+  if(foto){ abrirVisor(foto.dataset.foto, foto.dataset.pie); return; }
   const del = ev.target.closest('[data-del]');
   if(del){
     const r = monitoreos.find(x => x.id === del.dataset.del);
@@ -1568,8 +2402,10 @@ function tomarGpsPara(monitoreoId){
     {enableHighAccuracy:true, timeout:25000, maximumAge:0}
   );
 }
-['filtro-predio','filtro-texto'].forEach(id =>
-  document.getElementById(id).addEventListener('input', renderHistorial));
+['filtro-predio','filtro-texto'].forEach(id => {
+  document.getElementById(id).addEventListener('input', renderHistorial);
+  document.getElementById(id).addEventListener('change', renderHistorial);
+});
 document.getElementById('btn-limpiar-filtros').addEventListener('click', ()=>{
   document.getElementById('filtro-predio').value = '';
   document.getElementById('filtro-texto').value = '';
@@ -1591,53 +2427,76 @@ function aCSV(encabezados, filas){
 }
 
 // ---------- Exportar CSV ----------
+/* Nombre del archivo de cada foto dentro del ZIP. El CSV lo repite, para que
+   cada fila diga cuál es su foto sin abrir nada más. */
+function nombreArchivoFoto(r, f){
+  const limpio = s => normalizar(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return `${r.ronda}_${limpio(r.codigoArbol)}_${f.organo}_${r.fecha}_${f.id.slice(0,8)}.jpg`;
+}
+const siNo = v => v === true ? 'sí' : v === false ? 'no' : '';
+
 document.getElementById('btn-exportar-csv').addEventListener('click', ()=>{
-  const lista = activos();
-  if(!lista.length){ alert('No hay datos para exportar.'); return; }
+  const lista = registrosDelHistorial();
+  if(!lista.length){ alert('No hay datos para exportar con la fuente y los filtros elegidos.'); return; }
   const encabezados = [
-    'id','Fecha','Ronda','Año','Mes de la ronda','Vereda','Predio','Código del árbol','Nombre común','Nombre científico','Familia',
+    'id','Fuente','Fecha','Ronda','Año','Mes de la ronda','Vereda','Predio','Código del árbol','Nombre común','Nombre científico','Familia',
     'Protocolo Corpoamazonia','Está en la base','Clima',
     ...FENOFASES.map(f => f.n + ' (%)'),
-    'Estado fitosanitario','Cambio de placa','Placa anterior','Observaciones','Registra',
+    'Estado fitosanitario','Cambio de placa','Placa anterior','Observaciones',
+    'Vio animal','Animal (tipo)','Nombre del animal','Qué hacía el animal',
+    'Foto de la flor','Foto del fruto maduro','Sin foto (motivo)','Registra',
     'Latitud','Longitud','Precisión GPS (m)','Altitud (m)','GPS tomado en','Creado en','Dispositivo'
   ];
   const filas = lista.map(r => {
-    const p = puntoDe(r.id);
+    const p = r.externo ? null : puntoDe(r.id);
     const a = arbolPorCodigo(r.codigoArbol);
     const mes = Number((r.ronda||'').slice(5,7));
+    const foto = organo => (r.fotos||[]).filter(f => f.organo === organo).map(f => nombreArchivoFoto(r, f)).join('|');
+    const animales = r.animales || [];
     return [
-      r.id, r.fecha, r.ronda, (r.ronda||'').slice(0,4), MESES[mes-1] || '',
+      r.id, nombreFuente(r), r.fecha, r.ronda, (r.ronda||'').slice(0,4), MESES[mes-1] || '',
       a ? a.v : '', r.predio, r.codigoArbol, r.nombreComun, r.nombreCientifico, r.familia,
       a && a.pr ? (a.pr === 'especie' ? 'sí — coincide especie' : 'sí — coincide género') : 'no',
       r.enBase ? 'sí' : 'no', r.clima,
       ...FENOFASES.map(f => r.fenologia[f.k]),
       (r.estadoFitosanitario||[]).join('|'), r.cambioPlaca ? 'sí' : 'no', r.placaAnterior,
-      r.observaciones, r.monitor,
+      r.observaciones,
+      siNo(r.vioAnimal),
+      animales.map(x => x.tipo).join('|'),
+      animales.map(x => x.nombre).join('|'),
+      animales.map(x => x.conducta === 'Otra' ? `Otra: ${x.conductaOtra}` : x.conducta).join('|'),
+      foto('flor'), foto('fruto'),
+      (r.sinFoto||[]).map(s => `${NOMBRE_ORGANO[s.organo] || s.organo}: ${s.motivo}`).join('|'),
+      r.monitor,
       p ? p.latitud : '', p ? p.longitud : '', p ? p.precisionM : '', p ? p.altitudM : '',
       p ? p.capturadoEn : '', r.creadoEn, r.dispositivo
     ];
   });
+  const fuente = document.getElementById('filtro-fuente').value || 'internos';
   descargar(new Blob(['﻿' + aCSV(encabezados, filas)], {type:'text/csv;charset=utf-8;'}),
-            `monitoreo_semilleros_solano_${hoyISO()}.csv`);
+            `monitoreo_semilleros_solano_${fuente}_${hoyISO()}.csv`);
 });
 
 /* ---------- Exportar GeoJSON ----------
    La coordenada sale del GPS del monitoreo; si no lo hubo, se usa la del árbol
    en la base. `origen_coordenada` dice cuál de las dos es, para no mezclar. */
 document.getElementById('btn-exportar-geojson').addEventListener('click', ()=>{
-  const feats = activos().map(r => {
-    const p = puntoDe(r.id);
+  const feats = registrosDelHistorial().map(r => {
+    const p = r.externo ? null : puntoDe(r.id);
     const a = arbolPorCodigo(r.codigoArbol);
     const lat = p ? p.latitud  : (a && a.lat != null ? a.lat : null);
     const lon = p ? p.longitud : (a && a.lon != null ? a.lon : null);
     if(lat === null || lon === null) return null;
     const props = {
-      monitoreo_id: r.id, fecha: r.fecha, ronda: r.ronda, predio: r.predio,
+      monitoreo_id: r.id, fuente: nombreFuente(r), fecha: r.fecha, ronda: r.ronda, predio: r.predio,
       codigo_arbol: r.codigoArbol, nombre_comun: r.nombreComun,
       nombre_cientifico: r.nombreCientifico, familia: r.familia,
       clima: r.clima,
       estado_fitosanitario: (r.estadoFitosanitario||[]).join('|'),
       observaciones: r.observaciones, registra: r.monitor,
+      vio_animal: siNo(r.vioAnimal),
+      fauna: resumenFauna(r),
+      fotos: (r.fotos||[]).map(f => nombreArchivoFoto(r, f)).join('|'),
       origen_coordenada: p ? 'gps' : 'base',
       precision_m: p ? p.precisionM : null,
       dispositivo: r.dispositivo
@@ -1646,14 +2505,14 @@ document.getElementById('btn-exportar-geojson').addEventListener('click', ()=>{
     return {type:'Feature', geometry:{type:'Point', coordinates:[lon, lat]}, properties: props};
   }).filter(Boolean);
 
-  if(!feats.length){ alert('Todavía no hay monitoreos con coordenada.'); return; }
+  if(!feats.length){ alert('No hay monitoreos con coordenada con la fuente y los filtros elegidos.'); return; }
   const fc = {
     type:'FeatureCollection', name:'monitoreo_semilleros_solano',
     crs:{type:'name', properties:{name:'urn:ogc:def:crs:OGC:1.3:CRS84'}},   // WGS84 lon/lat = EPSG:4326
     features: feats
   };
   descargar(new Blob([JSON.stringify(fc, null, 2)], {type:'application/geo+json'}),
-            `monitoreo_semilleros_solano_${hoyISO()}.geojson`);
+            `monitoreo_semilleros_solano_${document.getElementById('filtro-fuente').value || 'internos'}_${hoyISO()}.geojson`);
 });
 
 /* =========================================================================
@@ -1665,14 +2524,17 @@ document.getElementById('btn-exportar-geojson').addEventListener('click', ()=>{
    esperar flor y en qué mes esperar fruto maduro, que es cuando se colecta.
    Un mes sin ningún monitoreo se raya: no es un cero, es que nadie fue.
    ========================================================================= */
+function calendarioBase(){
+  return segunFuente(document.getElementById('cal-fuente').value || 'ambos');
+}
 function aniosConDatos(){
-  const a = new Set(activos().map(r => (r.ronda||'').slice(0,4)).filter(x => /^\d{4}$/.test(x)));
+  const a = new Set(calendarioBase().map(r => (r.ronda||'').slice(0,4)).filter(x => /^\d{4}$/.test(x)));
   if(!a.size) a.add(String(new Date().getFullYear()));
   return Array.from(a).sort().reverse();
 }
 
 function opcionesAgrupacion(modo){
-  const lista = activos();
+  const lista = calendarioBase();
   if(modo === 'especie'){
     const m = new Map();
     lista.forEach(r => { if(r.nombreComun) m.set(r.nombreComun, r.nombreCientifico); });
@@ -1712,7 +2574,7 @@ function registrosDelCalendario(){
   const modo = document.getElementById('cal-agrupacion').value;
   const val  = document.getElementById('cal-valor').value;
   const anio = document.getElementById('cal-anio').value;
-  return activos().filter(r => (r.ronda||'').slice(0,4) === anio).filter(r => {
+  return calendarioBase().filter(r => (r.ronda||'').slice(0,4) === anio).filter(r => {
     if(modo === 'todo')    return true;
     if(modo === 'especie') return r.nombreComun === val;
     if(modo === 'predio')  return r.predio === val;
@@ -1760,14 +2622,15 @@ function renderCalendario(){
       </div>
       <div class="hint">
         El calendario se llena solo a medida que se registran monitoreos: cada celda es el
-        promedio del % de copa de esa fenofase en ese mes. Para ver aquí lo ya levantado en
-        Kobo hasta agosto, hay que importarlo una vez desde Configuración → Importar respaldo.
+        promedio del % de copa de esa fenofase en ese mes. Lo levantado en Kobo de abril a
+        agosto de 2026 ya viene en la app: elige «Externos» o «Internos y externos».
       </div>`;
     return;
   }
 
   const {m, observadosPorMes} = matrizCalendario(lista);
   const arboles = new Set(lista.map(r => r.codigoArbol)).size;
+  const nExt = lista.filter(r => r.externo).length;
 
   const filas = FENOFASES.map((f, i) => {
     const celdas = m[i].map((c, mes) => {
@@ -1805,7 +2668,9 @@ function renderCalendario(){
       <span><i style="background:repeating-linear-gradient(45deg,#f4f1e8,#f4f1e8 3px,#ebe6d9 3px,#ebe6d9 6px)"></i>sin monitoreo ese mes</span>
     </div>
     <div class="hint" style="margin-top:10px;">
-      ${lista.length} monitoreo(s) sobre ${arboles} árbol(es).
+      ${lista.length} monitoreo(s) sobre ${arboles} árbol(es)${
+        nExt && nExt < lista.length ? ` — ${lista.length - nExt} internos y ${nExt} externos de Kobo` :
+        nExt ? ' — todos externos, de Kobo' : ' — todos internos, de esta app'}.
       ${mesesColecta.length
         ? `<b>Fruto maduro</b> (25 % o más de la copa) en: <b>${mesesColecta.join(', ')}</b> — son los meses candidatos para colectar semilla.`
         : 'Todavía no hay ningún mes con fruto maduro por encima del 25 %.'}
@@ -1821,6 +2686,7 @@ document.getElementById('btn-exportar-calendario').addEventListener('click', ()=
   const modo = document.getElementById('cal-agrupacion').value;
   const val  = modo === 'todo' ? 'todo' : document.getElementById('cal-valor').value;
   const anio = document.getElementById('cal-anio').value;
+  const fuente = document.getElementById('cal-fuente').value || 'ambos';
   const {m, observadosPorMes} = matrizCalendario(lista);
   const filas = FENOFASES.map((f, i) => [
     val, anio, f.n,
@@ -1829,7 +2695,7 @@ document.getElementById('btn-exportar-calendario').addEventListener('click', ()=
   filas.push([val, anio, 'Monitoreos', ...observadosPorMes]);
   descargar(new Blob(['﻿' + aCSV([modo, 'Año', 'Fenofase', ...MESES], filas)],
             {type:'text/csv;charset=utf-8;'}),
-            `calendario_fenologico_${normalizar(val).replace(/\s+/g,'_')}_${anio}.csv`);
+            `calendario_fenologico_${normalizar(val).replace(/\s+/g,'_')}_${anio}_${fuente}.csv`);
 });
 
 // ---------- Configuración: quiénes registran ----------
@@ -1858,9 +2724,43 @@ document.getElementById('btn-guardar-monitores').addEventListener('click', ()=>{
   if(!nuevos.length){ alert('Debe quedar al menos una persona.'); return; }
   monitores = Array.from(new Set(nuevos));
   if(!persistirMonitores()){ alert('No se pudo guardar: ' + (ultimoErrorAlmacen || '')); return; }
+  // Quien sale de la lista sale también de los predios que tenía asignados.
+  const sueltos = PREDIOS.filter(p => asignacion[p] && !monitores.includes(asignacion[p]));
+  if(sueltos.length){
+    sueltos.forEach(p => { asignacion[p] = ''; });
+    persistirAsignacion();
+  }
   renderMonitores();
+  renderAsignacion();
   pintarMonitores();
-  toast('Lista guardada.');
+  toast(sueltos.length ? `Lista guardada. ${sueltos.length} predio(s) quedaron sin persona fija.` : 'Lista guardada.');
+});
+
+// ---------- Configuración: quién registra en cada predio ----------
+function persistirAsignacion(){
+  const ok = lsEscribir(LS_ASIGNACION, asignacion);
+  if(ok) idbEscribir('asignacion', asignacion);
+  return ok;
+}
+function renderAsignacion(){
+  const cont = document.getElementById('lista-asignacion');
+  const opciones = sel => '<option value="">— sin persona fija —</option>' +
+    monitores.map(m => `<option value="${esc(m)}" ${m === sel ? 'selected' : ''}>${esc(m)}</option>`).join('');
+  cont.innerHTML = PREDIOS_POR_VEREDA.map(v => `
+    <div class="hint" style="margin:10px 0 4px; font-weight:600; color:var(--verde);">${esc(v.vereda)}</div>
+    ${v.predios.map(p => `
+      <div class="config-item">
+        <span style="flex:1 1 45%; font-size:.88rem;">${esc(p)}</span>
+        <select data-predio="${esc(p)}" style="flex:1 1 55%;">${opciones(asignacion[p] || '')}</select>
+      </div>`).join('')}`).join('');
+}
+document.getElementById('btn-guardar-asignacion').addEventListener('click', ()=>{
+  document.querySelectorAll('#lista-asignacion select[data-predio]').forEach(s => {
+    asignacion[s.dataset.predio] = s.value;
+  });
+  if(!persistirAsignacion()){ alert('No se pudo guardar: ' + (ultimoErrorAlmacen || '')); return; }
+  avisoAsignacion();
+  toast('Asignación guardada.');
 });
 
 // ---------- Estado del almacenamiento ----------
@@ -1870,8 +2770,11 @@ async function renderEstadoAlmacen(){
 
   const pendientes = monitoreos.filter(r => !r.sincronizado).length;
   const eliminados = monitoreos.filter(r => r.eliminado).length;
-  const conPunto   = activos().filter(r => puntoDe(r.id)).length;
-  const fueraBase  = activos().filter(r => !r.enBase).length;
+  const conPunto   = internos().filter(r => puntoDe(r.id)).length;
+  const fueraBase  = internos().filter(r => !r.enBase).length;
+  const koboImportados = activos().filter(esKoboImportado).length;
+  const fichasFoto = internos().flatMap(r => r.fotos || []);
+  const pesoFotos  = fichasFoto.reduce((s, f) => s + (f.bytes || 0), 0);
   const bytes = (()=>{ try{
     return new Blob([(localStorage.getItem(LS_KEY)||'') + (localStorage.getItem(LS_PUNTOS)||'')]).size;
   }catch(e){ return 0; } })();
@@ -1894,8 +2797,12 @@ async function renderEstadoAlmacen(){
 
   cont.innerHTML = `
     <table class="estado">
-      <tr><th>Monitoreos guardados</th><td><b>${activos().length}</b>${eliminados ? ` <span class="hint">(+${eliminados} eliminados, conservados para sincronizar)</span>` : ''}</td></tr>
-      <tr><th>Con punto GPS</th><td>${conPunto} de ${activos().length}</td></tr>
+      <tr><th>Monitoreos guardados (internos)</th><td><b>${internos().length}</b>${eliminados ? ` <span class="hint">(+${eliminados} eliminados, conservados para sincronizar)</span>` : ''}</td></tr>
+      <tr><th>Monitoreos externos (Kobo)</th><td>${EXTERNOS.length}
+        <div class="hint">Abril a agosto de 2026. Vienen dentro de la app y son de solo lectura.${koboImportados
+          ? ` Este celular ya tenía ${koboImportados} de ellos importados a mano como respaldo: no se cuentan dos veces.` : ''}</div></td></tr>
+      <tr><th>Con punto GPS</th><td>${conPunto} de ${internos().length}</td></tr>
+      <tr><th>Fotos de flor o fruto</th><td>${fichasFoto.length}${fichasFoto.length ? ` <span class="hint">· ${(pesoFotos/1048576).toFixed(1)} MB en la copia interna del navegador</span>` : ''}</td></tr>
       <tr><th>Árboles fuera de la base</th><td>${fueraBase}${fueraBase ? ' <span class="pill warn">revisar en oficina</span>' : ''}</td></tr>
       <tr><th>Base de árboles</th><td>${ARBOLES.length} árboles · ${ARBOLES_POR_PREDIO.size} predios
         <div class="hint">Corte de septiembre de 2026. Viene dentro de la app; se actualiza publicando una versión nueva.</div></td></tr>
@@ -1935,14 +2842,99 @@ async function renderEstadoAlmacen(){
 
   const btnPurgar = document.getElementById('btn-purgar');
   if(btnPurgar) btnPurgar.addEventListener('click', ()=>{
-    if(!confirm(`Se eliminarán definitivamente ${eliminados} registro(s). No se puede deshacer.`)) return;
+    if(!confirm(`Se eliminarán definitivamente ${eliminados} registro(s) y sus fotos. No se puede deshacer.`)) return;
     const vivos = new Set(monitoreos.filter(r => !r.eliminado).map(r => r.id));
+    monitoreos.filter(r => r.eliminado).forEach(r => (r.fotos || []).forEach(f => fotoBorrar(f.id)));
     monitoreos = monitoreos.filter(r => !r.eliminado);
     puntos = puntos.filter(p => vivos.has(p.monitoreoId));
     persistirMonitoreos(); persistirPuntos();
     renderEstadoAlmacen();
   });
 }
+
+// ---------- Fotos en ZIP ----------
+/* ZIP sin compresión —las JPEG ya vienen comprimidas— y sin librerías: la app
+   no depende de nada que haya que bajar. Trae un fotos.csv que dice de qué
+   árbol, ronda y órgano es cada archivo. */
+const CRC_TABLA = (() => {
+  const t = new Uint32Array(256);
+  for(let n = 0; n < 256; n++){
+    let c = n;
+    for(let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(bytes){
+  let c = 0xFFFFFFFF;
+  for(let i = 0; i < bytes.length; i++) c = CRC_TABLA[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function armarZip(archivos){
+  const enc = new TextEncoder();
+  const partes = [], central = [];
+  let offset = 0;
+  for(const a of archivos){
+    const nombre = enc.encode(a.nombre);
+    const crc = crc32(a.bytes), n = a.bytes.length;
+    const d = a.fecha || new Date();
+    const hora = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+    const dia  = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    const loc = new DataView(new ArrayBuffer(30));
+    loc.setUint32(0, 0x04034b50, true); loc.setUint16(4, 20, true); loc.setUint16(6, 0x0800, true);
+    loc.setUint16(8, 0, true); loc.setUint16(10, hora, true); loc.setUint16(12, dia, true);
+    loc.setUint32(14, crc, true); loc.setUint32(18, n, true); loc.setUint32(22, n, true);
+    loc.setUint16(26, nombre.length, true); loc.setUint16(28, 0, true);
+    partes.push(loc, nombre, a.bytes);
+    const cen = new DataView(new ArrayBuffer(46));
+    cen.setUint32(0, 0x02014b50, true); cen.setUint16(4, 20, true); cen.setUint16(6, 20, true);
+    cen.setUint16(8, 0x0800, true); cen.setUint16(10, 0, true); cen.setUint16(12, hora, true);
+    cen.setUint16(14, dia, true); cen.setUint32(16, crc, true); cen.setUint32(20, n, true);
+    cen.setUint32(24, n, true); cen.setUint16(28, nombre.length, true);
+    cen.setUint32(42, offset, true);
+    central.push(cen, nombre);
+    offset += 30 + nombre.length + n;
+  }
+  const tam = central.reduce((s, p) => s + p.byteLength, 0);
+  const fin = new DataView(new ArrayBuffer(22));
+  fin.setUint32(0, 0x06054b50, true);
+  fin.setUint16(8, archivos.length, true); fin.setUint16(10, archivos.length, true);
+  fin.setUint32(12, tam, true); fin.setUint32(16, offset, true);
+  return new Blob([...partes, ...central, fin], {type:'application/zip'});
+}
+document.getElementById('btn-exportar-fotos').addEventListener('click', async (ev)=>{
+  const conFoto = internos().filter(r => (r.fotos || []).length);
+  if(!conFoto.length){ alert('Todavía no hay fotos de flor o fruto en este celular.'); return; }
+  const btn = ev.currentTarget;
+  btn.disabled = true; btn.textContent = 'Armando el ZIP…';
+  try{
+    const archivos = [], filas = [];
+    let faltan = 0;
+    for(const r of conFoto){
+      for(const f of r.fotos){
+        const blob = await fotoLeer(f.id);
+        if(!blob){ faltan++; continue; }
+        const nombre = nombreArchivoFoto(r, f);
+        archivos.push({nombre, bytes: new Uint8Array(await blob.arrayBuffer()),
+                       fecha: f.tomadaEn ? new Date(f.tomadaEn) : new Date()});
+        filas.push([nombre, r.codigoArbol, r.nombreComun, r.nombreCientifico, r.predio, r.ronda,
+                    r.fecha, NOMBRE_ORGANO[f.organo], r.fenologia[f.organo === 'flor' ? 'floracion' : 'frutoMaduro'],
+                    f.nitidez, f.borrosa ? (f.aceptada ? 'la app la vio borrosa; aceptada a mano' : 'borrosa') : 'nítida',
+                    r.monitor, r.id]);
+      }
+    }
+    if(!archivos.length){ alert('Las fotos de estos monitoreos no están en este celular: se tomaron en otro.'); return; }
+    const indice = '﻿' + aCSV(['Archivo','Código','Nombre común','Nombre científico','Predio','Ronda','Fecha',
+                               'Órgano','% de la copa','Nitidez','Revisión','Registra','id del monitoreo'], filas);
+    archivos.unshift({nombre:'fotos.csv', bytes: new TextEncoder().encode(indice)});
+    descargar(armarZip(archivos), `fotos_semilleros_solano_${hoyISO()}.zip`);
+    if(faltan) alert(`${faltan} foto(s) no están en este celular (se tomaron en otro dispositivo) y no van en el ZIP.`);
+  }catch(e){
+    alert('No se pudo armar el ZIP: ' + (e && e.message ? e.message : 'error desconocido'));
+  }finally{
+    btn.disabled = false; btn.textContent = '⬇ Descargar fotos (ZIP)';
+  }
+});
 
 // ---------- Respaldo JSON ----------
 document.getElementById('btn-exportar-json').addEventListener('click', ()=>{
@@ -1971,8 +2963,11 @@ document.getElementById('input-importar').addEventListener('change', (ev)=>{
       const antes = monitoreos.length;
       const unido = fusionar(monitoreos, datos.monitoreos);
       const nuevos = unido.length - antes;
+      const deKobo = datos.monitoreos.filter(r => esKoboImportado(normalizarRegistro(r))).length;
       if(!confirm(`El archivo trae ${datos.monitoreos.length} monitoreo(s).\n\n` +
-                  `Se AÑADEN a los de este dispositivo (no se borra nada): ${nuevos} nuevo(s).\n\n¿Continuar?`)) return;
+                  `Se AÑADEN a los de este dispositivo (no se borra nada): ${nuevos} nuevo(s).` +
+                  (deKobo ? `\n\n${deKobo} son del histórico de Kobo, que la app ya trae como datos externos: no se contarán dos veces.` : '') +
+                  '\n\n¿Continuar?')) return;
       monitoreos = unido;
       if(!persistirMonitoreos()){ alert('No se pudo guardar la importación: ' + (ultimoErrorAlmacen || '')); return; }
       if(Array.isArray(datos.puntos) && datos.puntos.length){
@@ -1984,7 +2979,10 @@ document.getElementById('input-importar').addEventListener('change', (ev)=>{
         persistirMonitores();
         pintarMonitores();
       }
-      alert(`Respaldo importado. Se añadieron ${nuevos} monitoreo(s).`);
+      sumarAsignadosALista();
+      alert(`Respaldo importado. Se añadieron ${nuevos} monitoreo(s).` +
+            (datos.monitoreos.some(r => (r.fotos || []).length)
+              ? '\n\nLas fotos no viajan en el JSON: se ven solo en el celular donde se tomaron (o en su ZIP).' : ''));
       renderHistorial(); renderRecorrido(); renderCalendario();
       renderMonitores(); renderEstadoAlmacen();
     }catch(e){
@@ -2001,6 +2999,9 @@ document.getElementById('btn-borrar-todo').addEventListener('click', ()=>{
   if(!confirm('¿Seguro? No se puede deshacer. Si aún no exportaste el respaldo JSON, cancela y expórtalo primero.')) return;
   monitoreos = []; puntos = [];
   persistirMonitoreos(); persistirPuntos();
+  idbFoto('readwrite', s => s.clear()).catch(()=>{});
+  fotosActuales = {flor:null, fruto:null}; sinFotoActual = {flor:'', fruto:''};
+  renderFotos();
   limpiarBorrador();
   renderHistorial(); renderRecorrido(); renderCalendario(); renderEstadoAlmacen();
 });
@@ -2042,7 +3043,15 @@ async function arrancarAlmacen(){
   const espejoMon = await idbLeer('monitores');
   if(Array.isArray(espejoMon) && espejoMon.length && !lsLeer(LS_MONITORES, null)){
     monitores = espejoMon;
+    sumarAsignadosALista();
     persistirMonitores();
+    pintarMonitores();
+  }
+  const espejoAsig = await idbLeer('asignacion');
+  if(espejoAsig && typeof espejoAsig === 'object' && !lsLeer(LS_ASIGNACION, null)){
+    PREDIOS.forEach(p => { if(p in espejoAsig) asignacion[p] = espejoAsig[p] || ''; });
+    sumarAsignadosALista();
+    persistirAsignacion();
     pintarMonitores();
   }
   renderEstadoAlmacen();
@@ -2059,6 +3068,7 @@ pintarPredios(document.getElementById('predio'), false);
 pintarPredios(document.getElementById('recorrido-predio'), false);
 pintarPredios(document.getElementById('filtro-predio'), true);
 pintarMonitores();
+pintarSelectoresFuente();
 
 document.getElementById('fecha').value = hoyISO();
 pintarRondas();
@@ -2069,6 +3079,8 @@ if(prefs.clima)   document.getElementById('clima').value = prefs.clima;
 document.getElementById('recorrido-predio').value = prefs.predio || '';
 
 renderFenologia();
+renderChipsObs();
+renderFauna();
 restaurarBorrador();
 actualizarBotonGuardar();
 renderHistorial();
