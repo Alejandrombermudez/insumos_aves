@@ -1,6 +1,15 @@
 # insumos_aves — Apps de campo de Amazonía Emprende
 
-Tres herramientas de campo en un solo sitio, con una pantalla de inicio para elegir a cuál entrar. Un solo link, un solo despliegue.
+Tres apps de campo en un solo despliegue, pero **cada una con su enlace, su instalación y su guardado sin internet**:
+
+| Enlace que se le pasa a la gente | App |
+|---|---|
+| `https://insumos-aves.vercel.app/aves/` | Avistamiento de Aves |
+| `https://insumos-aves.vercel.app/semilleros/` | Árboles Semilleros |
+| `https://insumos-aves.vercel.app/piedemonte/` | Árboles con permiso |
+
+La raíz (`/`) es un panel interno con esos enlaces y un botón para copiarlos; nadie tiene que pasar por ahí,
+y las apps no tienen enlace de vuelta a él. Desde 2026-11-08 (`ae-campo-v13`).
 
 > La app de **actividades, insumos y monitoreo de siembra** vivía aquí en `/insumos/`. Se separó el
 > 2026-09-05 a su propio repositorio y su propio despliegue:
@@ -23,14 +32,15 @@ Tres herramientas de campo en un solo sitio, con una pantalla de inicio para ele
 ```
 index.html          pantalla de inicio (elegir app)
 manifest.json       PWA del inicio
-sw.js               service worker: guarda todo para uso sin internet
+sw.js               service worker del panel: guarda solo el panel
+sw-comun.js         lógica común de los service workers (cada app la carga desde su sw.js)
 actualizar.js       avisa con un botón cuando hay una versión nueva
 generar-config.mjs  arma dist/ y config.js (dirección y key pública de la base) al desplegar
 vercel.json         le dice a Vercel que corra generar-config.mjs y publique dist/
 icons/              íconos del inicio
-aves/               app de avistamiento de aves (index.html + manifest + íconos)
-semilleros/         app de monitoreo fenológico (index.html + arboles.js + historico.js + manifest + íconos)
-piedemonte/         app de árboles con permiso (index.html + arboles.js + lib/leaflet + manifest + íconos)
+aves/               app de avistamiento de aves (index.html + sw.js + manifest + íconos)
+semilleros/         app de monitoreo fenológico (index.html + sw.js + arboles.js + historico.js + manifest + íconos)
+piedemonte/         app de árboles con permiso (index.html + sw.js + arboles.js + lib/leaflet + manifest + íconos)
 ```
 
 `semilleros/arboles.js` es la base de los 273 árboles de Solano (código, predio, especie,
@@ -97,9 +107,11 @@ En el PC, para probar en local: `node generar-config.mjs --local` (toma las vari
 ## Publicar un cambio
 
 1. Editar el archivo.
-2. **Subir el número de `VERSION` en `sw.js`.** Es el único paso fácil de olvidar y el
-   que hace que el cambio llegue: sin eso, los celulares siguen abriendo la copia
-   guardada. La versión anterior se borra sola al activarse la nueva.
+2. **Subir el número de `VERSION` en el `sw.js` de la carpeta de esa app** (`aves/sw.js`,
+   `semilleros/sw.js`, `piedemonte/sw.js`; el de la raíz solo si cambió el panel). Es el
+   único paso fácil de olvidar y el que hace que el cambio llegue: sin eso, los celulares
+   siguen abriendo la copia guardada. Si cambias `actualizar.js` o `sw-comun.js`, que usan
+   todas, sube las tres. Cada versión nueva borra solo las cachés viejas de su app.
 3. Empujar a `main`. Vercel despliega solo.
 
 ### Qué ve la gente
@@ -137,22 +149,29 @@ Cada push a `main` vuelve a desplegar.
 
 ## Uso sin internet
 
-`sw.js` guarda las dos apps en el dispositivo la primera vez que se abren **con** conexión. Después funcionan sin señal, que es lo normal en campo.
+Cada app registra el service worker de su carpeta (`actualizar.js` lo toma de `data-sw` y
+`data-alcance` en la etiqueta `<script>`), con alcance solo sobre ella: guarda esa app y nada
+más, la primera vez que se abre **con** conexión. Después funciona sin señal, que es lo normal en campo.
+
+Celulares que ya tenían el sitio de antes (un solo `sw.js` para todo): al actualizar, el de la
+raíz pasa a v13 y borra la caché vieja; la app abierta registra el suyo en ese mismo momento
+(con señal, porque la actualización solo se ofrece con señal) y sale una vez la barra
+«La versión nueva ya está lista». Los datos no se tocan: viven en localStorage/IndexedDB.
 
 Para instalarlas como app en el celular:
 
 - **Android (Chrome):** abrir el link → menú ⋮ → *Añadir a pantalla de inicio* (o *Instalar app*).
 - **iPhone (Safari, no Chrome):** abrir el link → botón Compartir → *Añadir a pantalla de inicio*.
 
-Se pueden instalar por separado: desde `/aves/` queda el ícono del pájaro, desde `/semilleros/` el del árbol con frutos, y desde el inicio el de la hoja.
+Cada una se instala por separado (su manifiesto tiene su propio `id`): desde `/aves/` queda el ícono del pájaro, desde `/semilleros/` el del árbol con frutos y desde `/piedemonte/` el del pin con árbol.
 
 ### Al publicar cambios
 
-El service worker responde primero con lo que tiene guardado y refresca de fondo, así que **un cambio nuevo se ve al segundo ingreso**. Si cambias algo y quieres que entre de una, sube el número de `VERSION` en [`sw.js`](sw.js) (`ae-campo-v1` → `ae-campo-v2`): eso borra lo guardado y obliga a recargar todo.
+El service worker responde primero con lo que tiene guardado y refresca de fondo, así que **un cambio nuevo se ve al segundo ingreso**. Si cambias algo y quieres que entre de una, sube el número de `VERSION` en el `sw.js` de esa app (`ae-piedemonte-v1` → `ae-piedemonte-v2`): eso borra lo guardado de esa app y ofrece el botón Actualizar.
 
 ## Correrlo en el PC
 
-Tiene que servirse por HTTP desde la **raíz** del repositorio (el service worker vive en `/sw.js`). Abrir el archivo con doble clic no activa el modo sin conexión.
+Tiene que servirse por HTTP desde la **raíz** del repositorio (los service workers cargan `/sw-comun.js` desde la raíz). Abrir el archivo con doble clic no activa el modo sin conexión.
 
 ```bash
 python -m http.server 5700

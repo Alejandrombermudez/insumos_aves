@@ -174,14 +174,13 @@
   </div>
 
   <div class="nota">
-    <h3>Antes de empezar</h3>
+    <h3>Cada app tiene su enlace</h3>
     <ul>
-      <li>Son <b>demos</b>: sirven para probarlas y proponer ajustes. No están conectadas a ningún servidor.</li>
-      <li>Los datos se guardan <b>en este dispositivo</b>, en este navegador. No se sincronizan entre celulares ni con el PC.</li>
-      <li>Para pasar datos a otro equipo, usa <b>Exportar / Importar respaldo (JSON)</b> dentro de cada app.</li>
-      <li>Puedes instalarlas: en Android, menú ⋮ → <b>Añadir a pantalla de inicio</b>; en iPhone, con <b>Safari</b>, Compartir → <b>Añadir a pantalla de inicio</b>.</li>
+      <li>Este panel es interno. A cada persona pásale <b>el enlace de su app</b>, no el de esta página: lo abre, la instala y le queda solo esa app, guardada para usarla sin internet.</li>
+      <li id="enlaces"></li>
+      <li>Instalar: en Android, menú ⋮ → <b>Instalar app</b> o <b>Añadir a pantalla de inicio</b>; en iPhone, con <b>Safari</b>, Compartir → <b>Añadir a pantalla de inicio</b>. Hay que abrirla una vez con internet.</li>
+      <li>Aves y Árboles con permiso guardan los datos <b>solo en el celular</b> (se exportan desde la app). Semilleros los envía a la base cuando hay señal.</li>
     </ul>
-    <div id="estado"><span class="punto"></span><span id="estado-txt">Preparando el uso sin internet…</span></div>
   </div>
 </main>
 
@@ -191,29 +190,18 @@
 
 <script src="/actualizar.js"></script>
 <script>
-  const estado = document.getElementById('estado');
-  const estadoTxt = document.getElementById('estado-txt');
-
-  if('serviceWorker' in navigator){
-    // actualizar.js ya registro el service worker y ademas avisa cuando hay
-    // version nueva; aqui solo se lee el resultado.
-    window.aeSW.then(() => {
-      if(navigator.serviceWorker.controller){
-        estado.classList.add('listo');
-        estadoTxt.textContent = 'Listas para usar sin internet.';
-      } else {
-        estadoTxt.textContent = 'Guardando las apps para usarlas sin internet…';
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          estado.classList.add('listo');
-          estadoTxt.textContent = 'Listas para usar sin internet.';
-        });
-      }
-    }).catch(() => {
-      estadoTxt.textContent = 'Ábrelas una vez con internet para poder usarlas después sin conexión.';
-    });
-  } else {
-    estadoTxt.textContent = 'Este navegador no guarda las apps para uso sin conexión.';
-  }
+  // Enlaces directos de cada app, con botón para copiarlos y pasarlos por WhatsApp o correo.
+  const APPS = [['Avistamiento de Aves', 'aves'], ['Árboles Semilleros', 'semilleros'], ['Árboles con permiso', 'piedemonte']];
+  document.getElementById('enlaces').innerHTML = APPS.map(([n, c]) => {
+    const u = location.origin + '/' + c + '/';
+    return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0">
+      <span>${n}:</span> <a href="${u}">${u}</a>
+      <button type="button" data-u="${u}" style="font:inherit;font-size:12px;border:1px solid #cfc8b7;background:#fff;border-radius:6px;padding:2px 8px;cursor:pointer">Copiar</button></div>`;
+  }).join('');
+  document.getElementById('enlaces').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-u]'); if (!b) return;
+    navigator.clipboard.writeText(b.dataset.u).then(() => { b.textContent = 'Copiado'; setTimeout(() => b.textContent = 'Copiar', 1500); });
+  });
 </script>
 </body>
 </html>

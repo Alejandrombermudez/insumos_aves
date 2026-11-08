@@ -22,6 +22,13 @@
 (function () {
   'use strict';
 
+  /* Cada app registra el service worker de SU carpeta, con alcance solo sobre ella:
+       <script src="/actualizar.js" data-sw="/piedemonte/sw.js" data-alcance="/piedemonte/"></script>
+     Sin esos datos (el panel de inicio) se registra el de la raíz. */
+  var etiqueta = document.currentScript;
+  var urlSW = (etiqueta && etiqueta.dataset.sw) || '/sw.js';
+  var alcance = (etiqueta && etiqueta.dataset.alcance) || '/';
+
   if (!('serviceWorker' in navigator)) {
     window.aeSW = Promise.reject(new Error('sin service worker'));
     window.aeSW.catch(function () {});
@@ -145,7 +152,7 @@
   });
 
   // ---------- registro ----------
-  window.aeSW = navigator.serviceWorker.register('/sw.js').then(function (reg) {
+  window.aeSW = navigator.serviceWorker.register(urlSW, { scope: alcance }).then(function (reg) {
     vigilar(reg);
     window.dispatchEvent(new Event('ae:sw-listo'));
     return reg;

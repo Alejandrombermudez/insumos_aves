@@ -242,7 +242,6 @@
   </div>
   <div class="derecha">
     <button type="button" class="sync-chip pend" id="sync-chip" title="Estado del envío a la base"><i></i><span>…</span></button>
-    <a class="inicio" href="../" title="Volver al inicio">← Inicio</a>
   </div>
 </header>
 <nav>
@@ -524,7 +523,7 @@
 <div id="toast" class="oculto"></div>
 <div id="visor" class="oculto"></div>
 
-<script src="/actualizar.js"></script>
+<script src="/actualizar.js" data-sw="/semilleros/sw.js" data-alcance="/semilleros/"></script>
 <script src="/config.js"></script>
 <script src="arboles.js"></script>
 <script src="historico.js"></script>
@@ -3401,8 +3400,8 @@ async function arrancarAlmacen(){
 }
 
 /* ---------- Service worker ----------
-   Lo registra actualizar.js, servido desde la raíz del sitio (/sw.js), que
-   cubre las tres apps de campo y muestra el botón "Actualizar". */
+   Esta app tiene el suyo, /semilleros/sw.js, que guarda solo esta carpeta. Lo registra
+   actualizar.js, que además muestra el botón "Actualizar" cuando hay versión nueva. */
 window.addEventListener('ae:sw-listo', ()=> setTimeout(renderEstadoAlmacen, 1500));
 window.aeAntesDeActualizar = escribirBorrador;   // no perder los 400 ms del borrador
 

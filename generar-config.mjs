@@ -45,7 +45,7 @@ if (local) {
   writeFileSync('config.js', config)
   console.log(cfg.supabaseUrl ? 'config.js escrito (local).' : 'config.js vacío escrito (local).')
 } else {
-  const ARCHIVOS = ['index.html', 'sw.js', 'actualizar.js', 'manifest.json']
+  const ARCHIVOS = ['index.html', 'sw.js', 'sw-comun.js', 'actualizar.js', 'manifest.json']
   const CARPETAS = ['icons', 'aves', 'semilleros', 'piedemonte']
   rmSync('dist', { recursive: true, force: true })
   mkdirSync('dist')
