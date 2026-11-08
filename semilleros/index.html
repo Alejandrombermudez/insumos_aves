@@ -36,6 +36,18 @@
   }
   header h1{margin:0; font-size:1.25rem; font-weight:600;}
   header .sub{font-size:.75rem; opacity:.8; margin-top:2px;}
+  header .derecha{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  /* Estado de la sincronización con la base: siempre visible, porque quien está en
+     campo necesita saber si lo que registró ya llegó. */
+  .sync-chip{
+    display:inline-flex; align-items:center; gap:7px; border:1px solid rgba(255,255,255,.35);
+    background:rgba(255,255,255,.1); color:var(--hueso); border-radius:999px; padding:5px 12px;
+    font-family:inherit; font-size:.78rem; cursor:pointer;
+  }
+  .sync-chip i{width:9px; height:9px; border-radius:50%; background:#c9c9c9; display:inline-block;}
+  .sync-chip.ok i{background:#7fd08a;}
+  .sync-chip.pend i{background:var(--ambar);}
+  .sync-chip.mal i{background:#ee7b7b;}
   nav{display:flex; gap:6px; background:var(--verde-claro); padding:6px 12px; flex-wrap:wrap;}
   nav button{
     background:transparent; border:none; color:var(--hueso); padding:8px 14px; border-radius:6px;
@@ -51,7 +63,7 @@
   .grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
   @media (max-width:640px){ .grid{grid-template-columns:1fr;} }
   label{display:block; font-size:.82rem; font-weight:600; margin-bottom:4px; color:var(--verde);}
-  input[type=text], input[type=number], input[type=date], input[type=month], select, textarea{
+  input[type=text], input[type=number], input[type=date], input[type=month], input[type=password], select, textarea{
     width:100%; padding:9px 10px; border:1px solid var(--borde); border-radius:6px;
     font-family:inherit; font-size:.95rem; background:#fff; color:var(--texto);
   }
@@ -228,7 +240,10 @@
     <h1>🌳 Monitoreo de Árboles Semilleros</h1>
     <div class="sub">Solano, Caquetá — Amazonía Emprende</div>
   </div>
-  <a class="inicio" href="../" title="Volver al inicio">← Inicio</a>
+  <div class="derecha">
+    <button type="button" class="sync-chip pend" id="sync-chip" title="Estado del envío a la base"><i></i><span>…</span></button>
+    <a class="inicio" href="../" title="Volver al inicio">← Inicio</a>
+  </div>
 </header>
 <nav>
   <button data-tab="registro" class="active">Registrar</button>
@@ -435,6 +450,11 @@
   <!-- ===================== CONFIGURACIÓN ===================== -->
   <section id="tab-config" class="oculto">
     <div class="card">
+      <h2>Conexión con la base</h2>
+      <div id="conexion"></div>
+    </div>
+
+    <div class="card">
       <h2>Quiénes registran</h2>
       <div id="lista-monitores"></div>
       <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
@@ -468,8 +488,9 @@
     <div class="card">
       <h2>Respaldo</h2>
       <p style="font-size:.88rem; line-height:1.5;">
-        Los datos viven solo en este dispositivo. Exporta el respaldo antes de formatear el
-        celular, cambiar de navegador o entregar el equipo.
+        Cada registro se guarda primero en este dispositivo y se envía a la base cuando hay
+        señal y la sesión está abierta (arriba). Mientras no haya llegado, solo existe aquí:
+        exporta el respaldo antes de formatear el celular, cambiar de navegador o entregar el equipo.
       </p>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
         <button class="btn small" id="btn-exportar-json">⬇ Exportar respaldo (JSON)</button>
@@ -497,13 +518,14 @@
 
 <footer>
   Amazonía Emprende — Red de Árboles Semilleros · Solano, Caquetá<br>
-  Funciona sin conexión. Los datos quedan en este dispositivo.
+  Funciona sin conexión. Lo registrado queda en este dispositivo y se envía a la base cuando hay señal.
 </footer>
 
 <div id="toast" class="oculto"></div>
 <div id="visor" class="oculto"></div>
 
 <script src="/actualizar.js"></script>
+<script src="/config.js"></script>
 <script src="arboles.js"></script>
 <script src="historico.js"></script>
 <script>
@@ -523,7 +545,8 @@
       piloto se pueda subir tal cual sin volver a digitarlo.
    ========================================================================= */
 
-const APP_VERSION    = '1.1';
+const APP_VERSION    = '1.2';
+const LS_SESION      = 'sem_sesion_v1';     // {token, titulo, expira}: la sesión con la base
 const LS_KEY         = 'sem_monitoreos_v1';
 const LS_PUNTOS      = 'sem_puntos_v1';
 const LS_MONITORES   = 'sem_monitores_v1';
@@ -787,7 +810,8 @@ function normalizarFoto(f){
     nitidez:   num(f.nitidez),
     borrosa:   f.borrosa === true,
     aceptada:  f.aceptada === true,     // borrosa según la app, pero quien la tomó la dio por buena
-    tomadaEn:  f.tomadaEn || null
+    tomadaEn:  f.tomadaEn || null,
+    subida:    f.subida === true        // la imagen ya está en la base
   };
 }
 function normalizarAnimal(a){
@@ -1094,7 +1118,7 @@ document.querySelectorAll('nav button').forEach(btn=>{
     if(btn.dataset.tab === 'recorrido')  renderRecorrido();
     if(btn.dataset.tab === 'historial')  renderHistorial();
     if(btn.dataset.tab === 'calendario') renderCalendario();
-    if(btn.dataset.tab === 'config'){ renderMonitores(); renderAsignacion(); renderEstadoAlmacen(); }
+    if(btn.dataset.tab === 'config'){ renderConexion(); cargarTitulos(); renderMonitores(); renderAsignacion(); renderEstadoAlmacen(); }
   });
 });
 function irA(tab){
@@ -2223,8 +2247,11 @@ document.getElementById('form-monitoreo').addEventListener('submit', (ev)=>{
 
   const pendientes = pendientesDelPredio(reg.predio, reg.ronda);
   toast(`Guardado: ${reg.codigoArbol} — ${reg.nombreComun}.` +
-        (pendientes ? ` Faltan ${pendientes} árboles en este predio.` : ' Predio completo este mes.'));
+        (pendientes ? ` Faltan ${pendientes} árboles en este predio.` : ' Predio completo este mes.') +
+        (sesion ? '' : ' Queda en este celular: entra en Configuración para enviarlo a la base.'));
   inputCodigo.focus();
+  pintarSync();
+  sincronizar();
 });
 
 /* =========================================================================
@@ -2375,7 +2402,8 @@ document.querySelector('#tabla-historial tbody').addEventListener('click', (ev)=
     if(!confirm(`¿Eliminar el monitoreo del árbol ${r.codigoArbol} del ${r.fecha}?`)) return;
     r.eliminado = true; r.actualizadoEn = ahora(); r.sincronizado = false;
     persistirMonitoreos();
-    renderHistorial(); renderEstadoAlmacen();
+    renderHistorial(); renderEstadoAlmacen(); pintarSync();
+    sincronizar();
     return;
   }
   const gps = ev.target.closest('[data-gps]');
@@ -2395,8 +2423,9 @@ function tomarGpsPara(monitoreoId){
         precisionAltM: c.altitudeAccuracy != null ? Math.round(c.altitudeAccuracy) : null,
         capturadoEn: new Date(pos.timestamp || Date.now()).toISOString()
       });
-      renderHistorial(); renderEstadoAlmacen();
+      renderHistorial(); renderEstadoAlmacen(); pintarSync();
       toast('Punto GPS guardado.');
+      sincronizar();
     },
     err => alert('No se pudo obtener la ubicación: ' + (err.message || 'error desconocido')),
     {enableHighAccuracy:true, timeout:25000, maximumAge:0}
@@ -2768,8 +2797,8 @@ async function renderEstadoAlmacen(){
   const cont = document.getElementById('estado-almacen');
   if(!cont) return;
 
-  const pendientes = monitoreos.filter(r => !r.sincronizado).length;
-  const eliminados = monitoreos.filter(r => r.eliminado).length;
+  const pendientes = monitoreosPorEnviar().length;
+  const eliminados = monitoreos.filter(r => r.eliminado && (!sesion || r.sincronizado)).length;
   const conPunto   = internos().filter(r => puntoDe(r.id)).length;
   const fueraBase  = internos().filter(r => !r.enBase).length;
   const koboImportados = activos().filter(esKoboImportado).length;
@@ -2806,8 +2835,10 @@ async function renderEstadoAlmacen(){
       <tr><th>Árboles fuera de la base</th><td>${fueraBase}${fueraBase ? ' <span class="pill warn">revisar en oficina</span>' : ''}</td></tr>
       <tr><th>Base de árboles</th><td>${ARBOLES.length} árboles · ${ARBOLES_POR_PREDIO.size} predios
         <div class="hint">Corte de septiembre de 2026. Viene dentro de la app; se actualiza publicando una versión nueva.</div></td></tr>
-      <tr><th>Sin sincronizar</th><td>${pendientes} <span class="hint">— todavía no hay servidor: todo vive en este dispositivo</span></td></tr>
+      <tr><th>Sin enviar a la base</th><td>${pendientes}${fichasFoto.filter(f => !f.subida).length ? ` · ${fichasFoto.filter(f => !f.subida).length} foto(s)` : ''}
+        <span class="hint">— ${sesion ? 'se envían solas cuando hay señal' : 'entra en «Conexión con la base» para enviarlos'}</span></td></tr>
       <tr><th>Último guardado</th><td>${m.ultimoGuardado ? esc(new Date(m.ultimoGuardado).toLocaleString()) : '—'}</td></tr>
+      <tr><th>Última vez que llegó a la base</th><td>${m.ultimaSync ? esc(new Date(m.ultimaSync).toLocaleString()) : '—'}</td></tr>
       <tr><th>Espacio usado</th><td>${(bytes/1024).toFixed(1)} KB <span class="hint">de ~5 MB disponibles</span></td></tr>
       <tr><th>Copia interna (IndexedDB)</th><td>${idbDisponible === true ? '<span class="pill ok">activa</span>' : idbDisponible === false ? '<span class="pill warn">no disponible</span>' : 'comprobando…'}</td></tr>
       <tr><th>Almacenamiento persistente</th><td>${esc(persistente)}</td></tr>
@@ -2843,9 +2874,12 @@ async function renderEstadoAlmacen(){
   const btnPurgar = document.getElementById('btn-purgar');
   if(btnPurgar) btnPurgar.addEventListener('click', ()=>{
     if(!confirm(`Se eliminarán definitivamente ${eliminados} registro(s) y sus fotos. No se puede deshacer.`)) return;
-    const vivos = new Set(monitoreos.filter(r => !r.eliminado).map(r => r.id));
-    monitoreos.filter(r => r.eliminado).forEach(r => (r.fotos || []).forEach(f => fotoBorrar(f.id)));
-    monitoreos = monitoreos.filter(r => !r.eliminado);
+    // Con la sesión abierta solo se purgan los borrados que la base ya conoce: uno pendiente
+    // tiene que viajar antes, o el registro seguiría vivo allá.
+    const sePurga = r => r.eliminado && (!sesion || r.sincronizado);
+    const vivos = new Set(monitoreos.filter(r => !sePurga(r)).map(r => r.id));
+    monitoreos.filter(sePurga).forEach(r => (r.fotos || []).forEach(f => fotoBorrar(f.id)));
+    monitoreos = monitoreos.filter(r => !sePurga(r));
     puntos = puntos.filter(p => vivos.has(p.monitoreoId));
     persistirMonitoreos(); persistirPuntos();
     renderEstadoAlmacen();
@@ -2995,7 +3029,10 @@ document.getElementById('input-importar').addEventListener('change', (ev)=>{
 
 document.getElementById('btn-borrar-todo').addEventListener('click', ()=>{
   if(!monitoreos.length){ alert('No hay datos que borrar.'); return; }
-  if(!confirm(`Esto borrará los ${monitoreos.length} monitoreo(s) guardados en este navegador. ¿Continuar?`)) return;
+  const sinEnviar = monitoreosPorEnviar().length;
+  if(!confirm(`Esto borrará los ${monitoreos.length} monitoreo(s) guardados en este navegador.` +
+              (sinEnviar ? `\n\nOJO: ${sinEnviar} todavía NO llegaron a la base y se perderían. Cancela y sincroniza primero.` : '') +
+              ' ¿Continuar?')) return;
   if(!confirm('¿Seguro? No se puede deshacer. Si aún no exportaste el respaldo JSON, cancela y expórtalo primero.')) return;
   monitoreos = []; puntos = [];
   persistirMonitoreos(); persistirPuntos();
@@ -3005,6 +3042,312 @@ document.getElementById('btn-borrar-todo').addEventListener('click', ()=>{
   limpiarBorrador();
   renderHistorial(); renderRecorrido(); renderCalendario(); renderEstadoAlmacen();
 });
+
+/* =========================================================================
+   CONEXIÓN CON LA BASE — el celular empuja, la base recibe
+   -------------------------------------------------------------------------
+   Guardar NUNCA depende de la red ni de la sesión: el registro entra primero
+   al celular (arriba) y esto lo envía después, cuando puede.
+
+   La app habla con Supabase SOLO por las funciones ras.semilleros_* (ver
+   Intranet-AE/docs/sql/migration_monitoreo_semilleros.sql). No lee tablas: la
+   key pública (anon) no tiene permiso para eso. Se entra con un TÍTULO y su
+   clave (SEMILLEROS), que se administran en la intranet, y cada llamada lleva
+   el token que entrega semilleros_ingresar. La dirección y la key salen de
+   /config.js, que se genera al desplegar (generar-config.mjs): no están en
+   este repositorio, que es público.
+
+   Reglas:
+   · El mismo id (uuid del celular) es el mismo registro: reenviar no duplica.
+   · Gana el actualizadoEn más reciente. Borrar marca `eliminado`, no destruye.
+   · Un registro se da por enviado solo si no cambió mientras viajaba.
+   · Las fotos van aparte, una por llamada, después de su monitoreo.
+   · Un solo sentido por ahora: no se baja nada de la base al celular.
+   ========================================================================= */
+const CFG = window.AE_CONFIG || {};
+let sesion = (function(){ const s = lsLeer(LS_SESION, null); return s && s.token ? s : null; })();
+const sync = {
+  enCurso:false, otraVez:false, error:null, sinRed:false,
+  enBase:null,                 // {monitoreos, fotos} que dijo la base en la última vuelta
+  ultimaOk:null,
+  rechazados:new Map(),        // id → motivo: la base lo rechazó; espera a que alguien decida
+  sinImagen:new Set(),         // fotos cuya imagen no está en ESTE celular (viene de un respaldo)
+  titulos:null                 // títulos de la pantalla de entrada
+};
+
+class ErrorBase extends Error {
+  constructor(msg, codigo, reintentable){ super(msg); this.codigo = codigo || ''; this.reintentable = !!reintentable; }
+}
+
+async function rpc(fn, args){
+  if(!CFG.supabaseUrl || !CFG.supabaseAnonKey) throw new ErrorBase('A esta copia de la app le falta la configuración de la base (config.js).', 'CONFIG');
+  let r;
+  try{
+    r = await fetch(`${CFG.supabaseUrl}/rest/v1/rpc/${fn}`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json', apikey:CFG.supabaseAnonKey, Authorization:'Bearer '+CFG.supabaseAnonKey,
+               'Content-Profile':'ras', 'Accept-Profile':'ras'},
+      body: JSON.stringify(args || {})
+    });
+  }catch(e){ throw new ErrorBase('Sin señal: no se pudo hablar con la base.', 'RED', true); }
+  const txt = await r.text(); let j = null;
+  try{ j = txt ? JSON.parse(txt) : null; }catch(e){}
+  if(!r.ok){
+    const msg = (j && (j.message || j.hint)) || `La base respondió con error ${r.status}.`;
+    if(/SESION_VENCIDA/.test(msg)) throw new ErrorBase('La sesión venció o cambiaron la clave del título. Vuelve a entrar.', 'SESION');
+    throw new ErrorBase(msg, (j && j.code) || String(r.status), r.status >= 500 || r.status === 408 || r.status === 429);
+  }
+  return j;
+}
+
+const aSnake = k => k.replace(/[A-Z]/g, c => '_' + c.toLowerCase());
+
+/* Lo que no se ha enviado: los monitoreos de este celular (no los de Kobo, que la
+   app ya trae como externos) y las fotos de los que no están borrados. */
+function monitoreosPorEnviar(){ return monitoreos.filter(r => !esKoboImportado(r) && !r.sincronizado); }
+function fotosPorEnviar(){
+  const lista = [];
+  monitoreos.forEach(r => {
+    if(esKoboImportado(r) || r.eliminado) return;
+    (r.fotos || []).forEach(f => { if(!f.subida && !sync.sinImagen.has(f.id)) lista.push({r, f}); });
+  });
+  return lista;
+}
+
+function aFilaServidor(r){
+  const p = puntos.find(x => x.monitoreoId === r.id) || null;
+  const fila = {
+    id: r.id, codigo: r.codigoArbol, predio: r.predio, fecha: r.fecha, ronda: r.ronda,
+    nombre_comun: r.nombreComun, nombre_cientifico: r.nombreCientifico, familia: r.familia,
+    en_base: r.enBase, clima: r.clima,
+    estado_fitosanitario: r.estadoFitosanitario, cambio_placa: r.cambioPlaca, placa_anterior: r.placaAnterior,
+    observaciones: r.observaciones, vio_animal: r.vioAnimal, animales: r.animales, sin_foto: r.sinFoto,
+    monitor: r.monitor, dispositivo_id: r.dispositivo,
+    creado_en: r.creadoEn, actualizado_en: r.actualizadoEn, eliminado: r.eliminado,
+    punto: p ? {
+      id: p.id, latitud: p.latitud, longitud: p.longitud, precision_m: p.precisionM,
+      altitud_m: p.altitudM, precision_alt_m: p.precisionAltM, fuente: p.fuente,
+      capturado_en: p.capturadoEn, actualizado_en: p.actualizadoEn, dispositivo_id: p.dispositivo,
+      eliminado: p.eliminado
+    } : null
+  };
+  FENOFASES.forEach(({k}) => { fila[aSnake(k)] = r.fenologia[k]; });
+  return fila;
+}
+
+function blobABase64(blob){
+  return new Promise((ok, mal) => {
+    const fr = new FileReader();
+    fr.onload  = () => ok(String(fr.result).split(',')[1] || '');
+    fr.onerror = () => mal(fr.error);
+    fr.readAsDataURL(blob);
+  });
+}
+
+/* Un error de red o de sesión corta la vuelta entera (no tiene caso seguir); uno
+   que la base rechaza por el contenido de ESE registro se anota y se sigue con el
+   siguiente. */
+function esCorte(e){ return e.reintentable || ['RED', 'SESION', 'CONFIG'].includes(e.codigo); }
+
+async function sincronizar(manual){
+  if(!sesion){
+    if(manual){ toast('Entra primero con el título y la clave (Configuración).'); irA('config'); }
+    return;
+  }
+  if(sync.enCurso){ sync.otraVez = true; return; }
+  if(manual){ sync.rechazados.clear(); sync.sinImagen.clear(); }
+  sync.enCurso = true; pintarSync();
+  let vencida = null;
+  try{
+    for(const r of monitoreosPorEnviar()){
+      if(sync.rechazados.has(r.id)) continue;
+      const envio = aFilaServidor(r);
+      try{
+        await rpc('semilleros_guardar', {p_token:sesion.token, p_reg:envio});
+      }catch(e){
+        if(esCorte(e)) throw e;
+        sync.rechazados.set(r.id, e.message); continue;
+      }
+      // Se da por enviado solo si no cambió mientras viajaba (p. ej. un GPS tomado en el camino).
+      const p = puntos.find(x => x.monitoreoId === r.id) || null;
+      const mismoPunto = (p ? p.actualizadoEn : null) === (envio.punto ? envio.punto.actualizado_en : null);
+      if(r.actualizadoEn === envio.actualizado_en && mismoPunto) r.sincronizado = true;
+      if(p && mismoPunto) p.sincronizado = true;
+      persistirMonitoreos(); persistirPuntos();
+    }
+
+    for(const {r, f} of fotosPorEnviar()){
+      if(!r.sincronizado || sync.rechazados.has(f.id)) continue;
+      const blob = await fotoLeer(f.id);
+      if(!blob){ sync.sinImagen.add(f.id); continue; }
+      const data = await blobABase64(blob);
+      try{
+        await rpc('semilleros_guardar_foto', {p_token:sesion.token, p_foto:{
+          id:f.id, monitoreo_id:r.id, organo:f.organo, mime:blob.type || 'image/jpeg',
+          ancho:f.ancho, alto:f.alto, nitidez:f.nitidez, borrosa:f.borrosa, aceptada:f.aceptada,
+          tomada_en:f.tomadaEn, data
+        }});
+      }catch(e){
+        if(esCorte(e)) throw e;
+        sync.rechazados.set(f.id, e.message); continue;
+      }
+      f.subida = true;
+      persistirMonitoreos();
+    }
+
+    const est = await rpc('semilleros_estado', {p_token:sesion.token});
+    sync.enBase = {monitoreos:est.monitoreos, fotos:est.fotos};
+    sync.ultimaOk = ahora(); sync.error = null; sync.sinRed = false;
+    const m = meta(); m.ultimaSync = sync.ultimaOk; lsEscribir(LS_META, m);
+  }catch(e){
+    if(e.codigo === 'SESION') vencida = e.message;
+    else if(e.codigo === 'RED' || e.reintentable) sync.sinRed = true;
+    else sync.error = e.message;
+    if(manual && !vencida) alert(e.codigo === 'RED'
+      ? 'No hay señal. Lo registrado queda guardado en el celular y se envía cuando vuelva.'
+      : e.message);
+  }finally{
+    sync.enCurso = false;
+    pintarSync(); renderEstadoAlmacen();
+  }
+  if(vencida){ sesionVencida(vencida); return; }
+  if(sync.otraVez){ sync.otraVez = false; sincronizar(); }
+}
+
+function sesionVencida(msg){
+  sesion = null;
+  try{ localStorage.removeItem(LS_SESION); }catch(e){}
+  pintarSync(); renderConexion();
+  alert(msg + '\n\nLo que registraste sigue guardado en este celular. Entra de nuevo en Configuración y se envía.');
+}
+
+function haceCuanto(iso){
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  if(s < 90) return 'ahora';
+  if(s < 3600) return Math.round(s / 60) + ' min';
+  if(s < 86400) return Math.round(s / 3600) + ' h';
+  return Math.round(s / 86400) + ' d';
+}
+
+function pintarSync(){
+  const b = document.getElementById('sync-chip');
+  if(!b) return;
+  const por = monitoreosPorEnviar().length + fotosPorEnviar().length;
+  const prob = sync.rechazados.size;
+  let txt, cls = 'pend';
+  if(!CFG.supabaseUrl)      txt = por ? `${por} sin enviar` : 'Solo en este celular';
+  else if(!sesion)          txt = por ? `${por} sin enviar · entrar` : 'Sin conectar';
+  else if(sync.enCurso)     txt = 'Enviando…';
+  else if(prob)             { txt = `${prob} con problema`; cls = 'mal'; }
+  else if(por)              txt = `${por} sin enviar`;
+  else if(sync.sinRed)      txt = 'Sin señal';
+  else if(sync.ultimaOk)    { txt = 'Al día · ' + haceCuanto(sync.ultimaOk); cls = 'ok'; }
+  else                      txt = 'Conectado';
+  b.className = 'sync-chip ' + cls;
+  b.querySelector('span').textContent = txt;
+  if(sesion) renderConexion();
+}
+document.getElementById('sync-chip').addEventListener('click', ()=>{ if(sesion) sincronizar(true); else irA('config'); });
+
+/* ---------- Pantalla de entrada y estado (Configuración → Conexión) ---------- */
+async function cargarTitulos(){
+  if(sesion || sync.titulos || !CFG.supabaseUrl || !navigator.onLine) return;
+  try{
+    const t = await rpc('semilleros_titulos', {});
+    sync.titulos = (t || []).filter(x => x.tiene_clave).map(x => x.nombre);
+    if(!sesion) renderConexion();
+  }catch(e){ /* sin señal: queda el campo para escribir el título */ }
+}
+
+function renderConexion(){
+  const cont = document.getElementById('conexion');
+  if(!cont) return;
+  if(!CFG.supabaseUrl || !CFG.supabaseAnonKey){
+    cont.innerHTML = `<p style="font-size:.88rem; line-height:1.5;">Esta copia de la app no trae la configuración de la base
+      (<code>config.js</code>), así que no puede enviar nada. Lo que registres queda guardado en este celular.</p>`;
+    return;
+  }
+  if(!sesion){
+    const campoTitulo = (sync.titulos && sync.titulos.length)
+      ? `<select id="con-titulo">${sync.titulos.map(t => `<option>${esc(t)}</option>`).join('')}</select>`
+      : `<input type="text" id="con-titulo" placeholder="SEMILLEROS" autocapitalize="characters" autocomplete="off">`;
+    cont.innerHTML = `
+      <p style="font-size:.88rem; line-height:1.5; margin-top:0;">Para que lo registrado llegue a la base de la red,
+        entra con el título y la clave que te dieron en la oficina. Sin entrar, todo se sigue guardando en este
+        celular y se envía en cuanto entres.</p>
+      <div class="grid">
+        <div><label for="con-titulo">Título</label>${campoTitulo}</div>
+        <div><label for="con-clave">Clave</label><input type="password" id="con-clave" autocomplete="off"></div>
+      </div>
+      <div style="margin-top:10px;"><button type="button" class="btn small" id="con-entrar">Entrar</button></div>`;
+    return;
+  }
+  const monPend = monitoreosPorEnviar().length, fotoPend = fotosPorEnviar().length;
+  const problemas = [...sync.rechazados].map(([id, motivo]) => {
+    const r = monitoreos.find(x => x.id === id);
+    const quien = r ? `Árbol ${esc(r.codigoArbol)} del ${esc(r.fecha)}` : 'Una foto';
+    return `<div class="hint" style="color:var(--rojo);">${quien}: ${esc(motivo)}</div>`;
+  }).join('');
+  cont.innerHTML = `
+    <table class="estado">
+      <tr><th>Sesión</th><td><span class="pill ok">abierta</span> como <b>${esc(sesion.titulo)}</b>
+        ${sesion.expira ? `<div class="hint">Vence el ${esc(new Date(sesion.expira).toLocaleDateString())}; después hay que volver a entrar.</div>` : ''}</td></tr>
+      <tr><th>Sin enviar</th><td>${monPend} monitoreo(s) · ${fotoPend} foto(s)
+        ${sync.sinRed ? '<div class="hint">No hay señal ahora: se envía solo cuando vuelva.</div>' : ''}
+        ${sync.error ? `<div class="hint" style="color:var(--rojo);">${esc(sync.error)}</div>` : ''}
+        ${problemas}</td></tr>
+      <tr><th>En la base</th><td>${sync.enBase ? `${sync.enBase.monitoreos} monitoreo(s) · ${sync.enBase.fotos} foto(s)` : '—'}
+        <div class="hint">Es el total de todos los celulares que envían. ${sync.ultimaOk ? 'Última vuelta: hace ' + esc(haceCuanto(sync.ultimaOk)) + '.' : ''}</div></td></tr>
+    </table>
+    <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+      <button type="button" class="btn small" id="con-sync">Sincronizar ahora</button>
+      <button type="button" class="btn ghost small" id="con-salir">Salir</button>
+    </div>`;
+}
+
+async function entrarABase(){
+  const titulo = (document.getElementById('con-titulo').value || '').trim();
+  const clave  = document.getElementById('con-clave').value;
+  if(!titulo || !clave){ alert('Elige el título y escribe la clave.'); return; }
+  const btn = document.getElementById('con-entrar');
+  btn.disabled = true;
+  try{
+    const r = await rpc('semilleros_ingresar', {p_titulo:titulo, p_clave:clave, p_dispositivo:navigator.userAgent.slice(0, 180)});
+    if(!r || r.ok === false){ alert((r && r.error) || 'No se pudo entrar.'); return; }
+    sesion = {token:r.token, titulo:r.titulo, expira:r.expira};
+    lsEscribir(LS_SESION, sesion);
+    toast('Conectado como ' + sesion.titulo + '.');
+    pintarSync();
+    sincronizar(true);
+  }catch(e){
+    alert(e.codigo === 'RED' ? 'No hay señal para entrar. Inténtalo donde haya: lo registrado sigue guardado en el celular.' : e.message);
+  }finally{
+    const b = document.getElementById('con-entrar'); if(b) b.disabled = false;
+  }
+}
+
+function salirDeLaBase(){
+  const por = monitoreosPorEnviar().length + fotosPorEnviar().length;
+  if(por && !confirm(`Hay ${por} cosa(s) que todavía no llegan a la base. Quedan guardadas en este celular y se envían cuando vuelvas a entrar. ¿Salir?`)) return;
+  sesion = null;
+  try{ localStorage.removeItem(LS_SESION); }catch(e){}
+  pintarSync(); renderConexion(); cargarTitulos();
+}
+
+document.getElementById('conexion').addEventListener('click', (ev)=>{
+  const b = ev.target.closest('button');
+  if(!b) return;
+  if(b.id === 'con-entrar') entrarABase();
+  else if(b.id === 'con-sync') sincronizar(true);
+  else if(b.id === 'con-salir') salirDeLaBase();
+});
+document.getElementById('conexion').addEventListener('keydown', (ev)=>{
+  if(ev.key === 'Enter' && ev.target.id === 'con-clave'){ ev.preventDefault(); entrarABase(); }
+});
+
+window.addEventListener('online', ()=> sincronizar());
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'visible') sincronizar(); });
+setInterval(()=>{ if(document.visibilityState === 'visible' && navigator.onLine) sincronizar(); }, 120000);
 
 /* ---------- Arranque del almacén ---------- */
 async function arrancarAlmacen(){
@@ -3084,7 +3427,10 @@ renderFauna();
 restaurarBorrador();
 actualizarBotonGuardar();
 renderHistorial();
+renderConexion();
+pintarSync();
 arrancarAlmacen();
+if(sesion) sincronizar();
 iniciarGps();     // la pestaña Registrar es la que abre por defecto
 </script>
 </body>

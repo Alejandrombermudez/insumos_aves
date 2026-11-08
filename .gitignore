@@ -1,6 +1,10 @@
 # Vercel
 .vercel
 
+# Lo genera generar-config.mjs (config.js lleva la key publica de la base: no se sube)
+config.js
+dist/
+
 # Sistema
 Thumbs.db
 desktop.ini

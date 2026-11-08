@@ -1,6 +1,6 @@
 # insumos_aves — Apps de campo de Amazonía Emprende
 
-Dos herramientas de campo en un solo sitio, con una pantalla de inicio para elegir a cuál entrar. Un solo link, un solo despliegue.
+Tres herramientas de campo en un solo sitio, con una pantalla de inicio para elegir a cuál entrar. Un solo link, un solo despliegue.
 
 > La app de **actividades, insumos y monitoreo de siembra** vivía aquí en `/insumos/`. Se separó el
 > 2026-09-05 a su propio repositorio y su propio despliegue:
@@ -10,8 +10,11 @@ Dos herramientas de campo en un solo sitio, con una pantalla de inicio para eleg
 |---|---|---|
 | 🦜 **Avistamiento de Aves** | `/aves/` | Registrar avistamientos durante el monitoreo (1040 especies de Caquetá), con punto GPS por avistamiento, historial, curva de acumulación de especies y export a CSV o GeoJSON. |
 | 🌳 **Árboles Semilleros** | `/semilleros/` | Monitoreo fenológico mensual de los 273 árboles semilleros de Solano: al digitar el código de la placa aparecen solos el nombre común y el científico, se marca la fenología de la copa (9 fenofases, escala 0–100), el estado fitosanitario y si hubo fauna en el árbol, y el calendario fenológico se arma solo. Con floración o fruto maduro en 50 % o más pide una foto nítida de la flor o el fruto. Trae dentro los 1 329 monitoreos de Kobo de abril a agosto de 2026 (datos externos), que se ven aparte o junto con los registrados en la app. |
+| 📍 **Árboles con permiso** | `/piedemonte/` | Visitas a los árboles con permiso de aprovechamiento (PFNM) ante Corpoamazonía en 16 predios de Piedemonte (417 árboles): lista por predio o mapa satelital con el polígono del predio y la UMF, distancia y flecha desde el GPS (con brújula si el celular la tiene), ficha del árbol (DAP, altura, copa…) y de la especie (catálogo), y una observación por visita con estado (encontrado / no encontrado / caído) y punto GPS. Guarda **solo en el celular**; se exporta a CSV para Excel y a respaldo JSON. El mapa satelital de cada predio se guarda en el celular con wifi para usarlo sin señal. |
 
-> **Son demos.** No están conectadas a Supabase ni a ningún servidor. Cada app guarda su información en el dispositivo donde se usa, y **no se sincroniza** entre celulares ni con el PC. Para mover datos, cada app tiene exportar/importar respaldo en JSON.
+> **Árboles Semilleros se conecta a la base desde la versión 1.2** (ver «Conexión con la base» abajo): cada
+> registro se guarda primero en el celular y se envía a Supabase cuando hay señal. **Aves sigue siendo un demo**:
+> guarda solo en el dispositivo y no se sincroniza con nada; para mover datos tiene exportar/importar respaldo en JSON.
 >
 > La app de aves guarda por duplicado (`localStorage` + `IndexedDB`) y las reconcilia al abrir, para que un registro no se pierda si el navegador libera una de las dos copias.
 
@@ -22,9 +25,12 @@ index.html          pantalla de inicio (elegir app)
 manifest.json       PWA del inicio
 sw.js               service worker: guarda todo para uso sin internet
 actualizar.js       avisa con un botón cuando hay una versión nueva
+generar-config.mjs  arma dist/ y config.js (dirección y key pública de la base) al desplegar
+vercel.json         le dice a Vercel que corra generar-config.mjs y publique dist/
 icons/              íconos del inicio
 aves/               app de avistamiento de aves (index.html + manifest + íconos)
 semilleros/         app de monitoreo fenológico (index.html + arboles.js + historico.js + manifest + íconos)
+piedemonte/         app de árboles con permiso (index.html + arboles.js + lib/leaflet + manifest + íconos)
 ```
 
 `semilleros/arboles.js` es la base de los 273 árboles de Solano (código, predio, especie,
@@ -41,7 +47,52 @@ Las fotos de flor o fruto se guardan en IndexedDB del celular, reducidas a 2048 
 viajan en el respaldo JSON (lo harían demasiado pesado): se descargan aparte en un ZIP
 desde Configuración, con un `fotos.csv` que dice de qué árbol, ronda y órgano es cada una.
 
-No hay build ni dependencias: es HTML, CSS y JavaScript planos. Editar es abrir el `index.html` que corresponda.
+Las apps son HTML, CSS y JavaScript planos y sin dependencias: editar es abrir el `index.html` que corresponda. El único «build» es `generar-config.mjs`, que copia los archivos a `dist/` y escribe `config.js`.
+
+## Árboles con permiso (piedemonte)
+
+`piedemonte/arboles.js` **se genera, no se edita a mano**: `python -I docs-internos/piedemonte/generar_arboles.py`.
+Cruza dos fuentes:
+
+- El Excel F-LAR-071 «Coordenadas Geográficas» que cada aliado radicó ante Corpoamazonía
+  (SharePoint, sitio Centro de Semillas Nativas › Reportes CSN › Reportes 2026 › Componente R ›
+  R6.Red_arboles_semilleros › R6.Permisos_Aprovechamiento_PFNM › PFNM_Piedemonte › Doc. Radicada en
+  Vital de cada Aliado). Hoja `Coordenadas_PUNTOS`: «Orden» es el código de la placa y
+  «Nombre_objeto» el nombre común; hoja `Coordenadas_POLÍGONOS_LINEAS`: predio y UMF. El texto de
+  cada Excel, sacado con el conector de Microsoft, queda en `docs-internos/piedemonte/excel_texto/`.
+- `ras.arboles_semilleros` (núcleo Piedemonte) y `catalogo.especies`, leídos por REST con la
+  service_role de `../Intranet-AE/.env` (solo en el PC, nunca en el repo).
+
+El predio se reconoce por los códigos: «Cosechasdemifinca» es Wilder Mahecha e «Inti Wasi» es
+Salomón Calvache. Johan Carrillo y Nadima Rojas no tienen Excel de coordenadas (solo el estudio
+técnico F-LAR-077) y el de Mauricio Portela tiene etiqueta de confidencialidad: esos tres toman
+**todos** sus árboles de la base, con la coordenada de la base (4 decimales, ±10 m), y la app lo avisa.
+11 códigos del Excel no están en la base (7 de Wilder Mahecha, 3 de Dagoberto, 1 de Inti Wasi): salen
+con lo que trae el Excel y la etiqueta «No está en la base». Los árboles sin especie enlazada muestran
+la determinación pendiente de la base («Parkia sp.») marcada como «por confirmar».
+
+Las observaciones viven en `localStorage` + IndexedDB (`ae-piedemonte`), unidas al abrir; las
+visitas borradas se marcan, no se eliminan, para que unir copias no las resucite. El mapa usa
+Leaflet (copiado en `piedemonte/lib/`, sin CDN) con la imagen satelital de Esri World Imagery;
+`sw.js` guarda esas imágenes en la caché `ae-teselas`, que **no se borra al cambiar de versión**.
+Por ser un repo público, `arboles.js` no lleva fotos de Kobo ni el nombre de quien registró cada árbol.
+
+## Conexión con la base (semilleros)
+
+`semilleros/` habla con Supabase **solo por las funciones `ras.semilleros_*`** (key pública anon + token de
+sesión; no lee tablas). Se entra con el título `SEMILLEROS` y su clave, que se administran en la intranet
+(Administrativa → App de campo). Guardar nunca espera a la red: el registro entra al celular y una cola lo
+envía después (monitoreo con su punto GPS, luego sus fotos, una por llamada). Un solo sentido: el celular
+empuja, la base recibe. El SQL está en `Intranet-AE/docs/sql/migration_monitoreo_semilleros.sql` (lo corre
+una persona en el SQL Editor).
+
+La dirección y la key no están en este repositorio, que es público: `config.js` lo genera
+`generar-config.mjs` en cada despliegue de Vercel (`vercel.json` publica `dist/`) a partir de dos variables de
+entorno del proyecto: `SUPABASE_URL` y `SUPABASE_ANON_KEY` (la **anon**, nunca la service_role). Si faltan, el
+despliegue no se rompe: se publica un `config.js` vacío y las apps siguen guardando solo en el celular.
+
+En el PC, para probar en local: `node generar-config.mjs --local` (toma las variables o, si no están, las
+`NEXT_PUBLIC_SUPABASE_*` de `../Intranet-AE/.env`) y servir esta carpeta. `config.js` y `dist/` están en `.gitignore`.
 
 ## Publicar un cambio
 

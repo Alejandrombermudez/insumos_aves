@@ -1,0 +1,978 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Árboles con permiso — Piedemonte</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#2f3f32">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Árboles Piedemonte">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="lib/leaflet.css">
+<style>
+  :root{
+    --verde:#2f3f32; --verde-claro:#46614c; --verde-ok:#3f8a4f;
+    --hueso:#f6f3ec; --ambar:#e1a644; --ambar-osc:#c78a2c;
+    --texto:#26302a; --suave:#6b7368; --borde:#d8d2c2; --rojo:#b24444; --card:#fff;
+    --alto-cab:0px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{margin:0; font-family:'Poppins','Segoe UI',Arial,sans-serif; background:var(--hueso); color:var(--texto);
+    -webkit-tap-highlight-color:transparent;}
+  h1,h2,h3{font-family:'Fraunces',Georgia,serif; font-weight:600; letter-spacing:.01em;}
+  button,input,select,textarea{font-family:inherit;}
+
+  /* ---------- cabecera ---------- */
+  .cabecera{position:sticky; top:0; z-index:1000; background:var(--verde); color:var(--hueso);
+    padding-top:env(safe-area-inset-top);}
+  .barra{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px 6px;}
+  .barra h1{margin:0; font-size:1.12rem; line-height:1.2;}
+  .barra .sub{font-size:.72rem; opacity:.8;}
+  .barra .der{display:flex; gap:8px; align-items:center;}
+  .chip-gps{display:inline-flex; align-items:center; gap:6px; border:1px solid rgba(255,255,255,.35);
+    background:rgba(255,255,255,.1); color:var(--hueso); border-radius:999px; padding:5px 11px;
+    font-size:.75rem; cursor:pointer; white-space:nowrap;}
+  .chip-gps i{width:9px; height:9px; border-radius:50%; background:#c9c9c9; display:inline-block;}
+  .chip-gps.ok i{background:#7fd08a;} .chip-gps.medio i{background:var(--ambar);} .chip-gps.mal i{background:#ee7b7b;}
+  .inicio{color:var(--hueso); opacity:.8; font-size:.8rem; text-decoration:none; white-space:nowrap;}
+  .selector{display:flex; gap:8px; align-items:center; padding:0 14px 8px;}
+  .selector select{flex:1; min-width:0; padding:9px 10px; border-radius:8px; border:none; font-size:.92rem;
+    background:var(--hueso); color:var(--texto); font-weight:500;}
+  .progreso{font-size:.75rem; white-space:nowrap; opacity:.9;}
+  nav{display:flex; background:var(--verde-claro);}
+  nav button{flex:1; background:transparent; border:none; color:var(--hueso); padding:10px 4px; font-size:.9rem;
+    opacity:.8; cursor:pointer; border-bottom:3px solid transparent;}
+  nav button.activa{opacity:1; font-weight:600; border-bottom-color:var(--ambar);}
+
+  main{max-width:860px; margin:0 auto; padding:12px 12px 90px;}
+  .oculto{display:none !important;}
+  .card{background:var(--card); border:1px solid var(--borde); border-radius:12px; padding:14px; margin-bottom:12px;}
+  .card h2{margin:0 0 8px; font-size:1.05rem; color:var(--verde);}
+  .nota{font-size:.78rem; color:var(--suave); line-height:1.5;}
+  .aviso{background:#fff6e3; border:1px solid #f0d9a6; color:#6d5221; border-radius:10px; padding:9px 12px;
+    font-size:.8rem; margin-bottom:10px; line-height:1.45;}
+  .btn{display:inline-flex; align-items:center; justify-content:center; gap:6px; background:var(--verde); color:var(--hueso);
+    border:none; border-radius:9px; padding:10px 14px; font-size:.9rem; font-weight:600; cursor:pointer; text-decoration:none;}
+  .btn.sec{background:#fff; color:var(--verde); border:1px solid var(--borde);}
+  .btn.ambar{background:var(--ambar); color:var(--verde);}
+  .btn.peligro{background:#fff; color:var(--rojo); border:1px solid #e6c3c3;}
+  .btn:disabled{opacity:.5; cursor:default;}
+  .btn.peq{padding:6px 10px; font-size:.8rem;}
+  .fila-btn{display:flex; gap:8px; flex-wrap:wrap;}
+
+  /* ---------- lista ---------- */
+  .buscador{display:flex; gap:8px; margin-bottom:8px;}
+  .buscador input{flex:1; min-width:0; padding:10px 12px; border:1px solid var(--borde); border-radius:9px; font-size:.95rem; background:#fff;}
+  .filtros{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;}
+  .filtro{border:1px solid var(--borde); background:#fff; border-radius:999px; padding:5px 12px; font-size:.8rem; cursor:pointer; color:var(--texto);}
+  .filtro.activo{background:var(--verde); border-color:var(--verde); color:var(--hueso);}
+  .arbol{display:flex; align-items:center; gap:12px; background:#fff; border:1px solid var(--borde); border-radius:12px;
+    padding:10px 12px; margin-bottom:8px; cursor:pointer; width:100%; text-align:left; color:inherit;}
+  .arbol:active{background:#f3efe5;}
+  .placa{flex:none; min-width:52px; height:44px; border-radius:9px; background:var(--ambar); color:var(--verde);
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1.05rem; padding:0 6px;}
+  .arbol.visitado .placa{background:var(--verde-ok); color:#fff;}
+  .arbol.no_encontrado .placa,.arbol.caido .placa{background:var(--rojo); color:#fff;}
+  .arbol .info{flex:1; min-width:0;}
+  .arbol .comun{font-weight:600; font-size:.95rem;}
+  .arbol .cient{font-style:italic; font-size:.8rem; color:var(--suave); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .arbol .estado{font-size:.72rem; color:var(--suave); margin-top:2px;}
+  .arbol .dist{flex:none; text-align:right; font-size:.85rem; font-weight:600; color:var(--verde);}
+  .arbol .dist small{display:block; font-weight:400; color:var(--suave); font-size:.7rem;}
+  .flecha-mini{display:inline-block; transition:transform .2s;}
+  .vacio{color:var(--suave); font-style:italic; padding:16px 4px;}
+
+  /* ---------- mapa ---------- */
+  #tab-mapa{position:fixed; left:0; right:0; bottom:0; top:var(--alto-cab); z-index:1;}
+  #mapa{position:absolute; inset:0; background:#d9dfd3;}
+  .botones-mapa{position:absolute; right:10px; top:10px; z-index:500; display:flex; flex-direction:column; gap:8px;}
+  .botones-mapa button{width:44px; height:44px; border-radius:12px; border:none; background:rgba(255,255,255,.88);
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); box-shadow:0 2px 8px rgba(0,0,0,.2);
+    font-size:1.2rem; cursor:pointer; color:var(--verde);}
+  .leyenda{position:absolute; left:10px; bottom:calc(12px + env(safe-area-inset-bottom)); z-index:500;
+    background:rgba(255,255,255,.85); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    border-radius:10px; padding:7px 10px; font-size:.72rem; line-height:1.6; box-shadow:0 2px 8px rgba(0,0,0,.15);}
+  .leyenda i{display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:5px; vertical-align:-1px;}
+  .leyenda .lin{display:inline-block; width:16px; height:0; border-top:3px solid var(--ambar); margin-right:5px; vertical-align:3px;}
+  .leyenda .lin.umf{border-top:2px dashed #fff; outline:1px solid rgba(0,0,0,.25);}
+  .aviso-mapa{position:absolute; left:10px; right:64px; top:10px; z-index:500; background:rgba(255,246,227,.95);
+    border-radius:10px; padding:8px 10px; font-size:.75rem; color:#6d5221; box-shadow:0 2px 8px rgba(0,0,0,.15);}
+  .etq-codigo{background:rgba(47,63,50,.85); color:#fff; border:none; border-radius:6px; padding:1px 5px;
+    font-size:11px; font-weight:600; box-shadow:none;}
+  .etq-codigo::before{display:none;}
+  #mapa:not(.cerca) .etq-codigo{display:none;}
+
+  /* ---------- ficha ---------- */
+  .velo{position:fixed; inset:0; background:rgba(20,28,22,.35); z-index:2000;}
+  .ficha{position:fixed; left:0; right:0; bottom:0; z-index:2001; max-height:90vh; overflow-y:auto;
+    background:rgba(250,248,243,.97); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    border-radius:18px 18px 0 0; box-shadow:0 -6px 30px rgba(0,0,0,.25); padding:0 14px calc(18px + env(safe-area-inset-bottom));
+    max-width:760px; margin:0 auto;}
+  .ficha .asa{position:sticky; top:0; background:inherit; padding:10px 0 6px; display:flex; align-items:center; justify-content:space-between; gap:8px; z-index:2;}
+  .ficha .asa::before{content:''; position:absolute; left:50%; top:5px; width:40px; height:4px; border-radius:2px; background:#cfc8b7; transform:translateX(-50%);}
+  .cerrar{background:none; border:none; font-size:1.6rem; line-height:1; color:var(--suave); cursor:pointer; padding:4px 8px;}
+  .ficha .titulo{display:flex; gap:12px; align-items:center;}
+  .ficha .titulo .placa{height:52px; min-width:64px; font-size:1.3rem;}
+  .ficha h2{margin:0; font-size:1.25rem; color:var(--verde);}
+  .ficha .cient{font-style:italic; color:var(--suave); font-size:.9rem;}
+  .etiqueta{display:inline-block; font-size:.7rem; padding:2px 8px; border-radius:999px; background:#ece6d7; color:#5c5546; margin:2px 3px 2px 0; font-style:normal;}
+  .etiqueta.roja{background:#f6dede; color:var(--rojo);}
+  .etiqueta.verde{background:#dcefdf; color:#2e6a3b;}
+  .guia{display:flex; align-items:center; gap:14px; background:var(--verde); color:var(--hueso); border-radius:14px; padding:12px 14px; margin:12px 0;}
+  .guia .flecha{width:64px; height:64px; flex:none; border-radius:50%; background:rgba(255,255,255,.1); display:flex; align-items:center; justify-content:center;}
+  .guia .flecha svg{width:44px; height:44px; transition:transform .25s;}
+  .guia .metros{font-size:1.7rem; font-weight:600; line-height:1.1;}
+  .guia .rumbo{font-size:.8rem; opacity:.85;}
+  .guia .btn{margin-left:auto;}
+  .seccion{margin:14px 0;}
+  .seccion h3{font-size:.95rem; margin:0 0 6px; color:var(--verde);}
+  .datos{display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:6px;}
+  .dato{background:#fff; border:1px solid var(--borde); border-radius:9px; padding:6px 9px;}
+  .dato b{display:block; font-size:.68rem; color:var(--suave); font-weight:500; text-transform:uppercase; letter-spacing:.03em;}
+  .dato span{font-size:.9rem;}
+  details{background:#fff; border:1px solid var(--borde); border-radius:9px; padding:8px 10px; font-size:.85rem; line-height:1.5;}
+  summary{cursor:pointer; font-weight:500; color:var(--verde);}
+  .estados{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;}
+  .estados button{border:1px solid var(--borde); background:#fff; border-radius:999px; padding:7px 12px; font-size:.82rem; cursor:pointer; color:var(--texto);}
+  .estados button.activo{background:var(--verde); color:#fff; border-color:var(--verde);}
+  .estados button.activo[data-e="no_encontrado"],.estados button.activo[data-e="caido"]{background:var(--rojo); border-color:var(--rojo);}
+  textarea{width:100%; min-height:96px; padding:10px; border:1px solid var(--borde); border-radius:9px; font-size:.95rem; resize:vertical; background:#fff;}
+  label.check{display:flex; gap:8px; align-items:center; font-size:.82rem; margin:8px 0;}
+  .visita{border-left:3px solid var(--verde-ok); background:#fff; border-radius:0 9px 9px 0; padding:8px 10px; margin-bottom:6px; font-size:.85rem;}
+  .visita.no_encontrado,.visita.caido{border-left-color:var(--rojo);}
+  .visita .cab{display:flex; justify-content:space-between; gap:8px; color:var(--suave); font-size:.75rem;}
+  .visita .txt{white-space:pre-wrap; margin-top:3px;}
+  .borrar-visita{background:none; border:none; color:var(--rojo); font-size:.75rem; cursor:pointer; padding:0;}
+
+  /* ---------- datos ---------- */
+  .campo{margin-bottom:10px;}
+  .campo label{display:block; font-size:.8rem; font-weight:600; color:var(--verde); margin-bottom:4px;}
+  .campo input{width:100%; padding:10px; border:1px solid var(--borde); border-radius:9px; font-size:.95rem;}
+  .barra-prog{height:8px; background:#ece6d7; border-radius:4px; overflow:hidden; margin:8px 0;}
+  .barra-prog div{height:100%; width:0; background:var(--verde-ok); transition:width .2s;}
+  .toast{position:fixed; left:50%; bottom:calc(20px + env(safe-area-inset-bottom)); transform:translateX(-50%); z-index:3000;
+    background:var(--verde); color:var(--hueso); padding:10px 16px; border-radius:10px; font-size:.85rem; box-shadow:0 4px 14px rgba(0,0,0,.25);
+    max-width:90vw;}
+</style>
+</head>
+<body>
+
+<div class="cabecera" id="cabecera">
+  <div class="barra">
+    <div>
+      <h1>Árboles con permiso</h1>
+      <div class="sub">Piedemonte · aprovechamiento PFNM ante Corpoamazonía</div>
+    </div>
+    <div class="der">
+      <button type="button" class="chip-gps" id="chip-gps" title="Ubicación del celular"><i></i><span>GPS</span></button>
+      <a class="inicio" href="../">← Inicio</a>
+    </div>
+  </div>
+  <div class="selector">
+    <select id="sel-predio" aria-label="Predio"></select>
+    <span class="progreso" id="progreso"></span>
+  </div>
+  <nav>
+    <button data-tab="lista" class="activa">Lista</button>
+    <button data-tab="mapa">Mapa</button>
+    <button data-tab="datos">Datos</button>
+  </nav>
+</div>
+
+<!-- ===================== LISTA ===================== -->
+<main id="tab-lista">
+  <div id="aviso-predio"></div>
+  <div class="buscador">
+    <input type="search" id="buscar" placeholder="Código o nombre (ej. 333, nogal)" autocomplete="off" inputmode="search">
+  </div>
+  <div class="filtros" id="filtros">
+    <button class="filtro activo" data-f="todos">Todos</button>
+    <button class="filtro" data-f="pendientes">Por visitar</button>
+    <button class="filtro" data-f="visitados">Visitados</button>
+    <button class="filtro" data-f="cerca" id="f-cerca" title="Ordena por distancia a tu ubicación">Más cerca</button>
+  </div>
+  <div id="lista"></div>
+</main>
+
+<!-- ===================== MAPA ===================== -->
+<section id="tab-mapa" class="oculto">
+  <div id="mapa"></div>
+  <div class="botones-mapa">
+    <button type="button" id="b-yo" title="Ir a mi ubicación">◎</button>
+    <button type="button" id="b-predio" title="Ver todo el predio">▢</button>
+  </div>
+  <div class="aviso-mapa oculto" id="aviso-mapa"></div>
+  <div class="leyenda">
+    <div><i style="background:var(--ambar)"></i>Por visitar</div>
+    <div><i style="background:var(--verde-ok)"></i>Visitado</div>
+    <div><i style="background:var(--rojo)"></i>No encontrado / caído</div>
+    <div><i style="background:#2f7de1"></i>Tú</div>
+    <div><span class="lin"></span>Predio <span class="lin umf" style="margin-left:6px"></span>UMF</div>
+  </div>
+</section>
+
+<!-- ===================== DATOS ===================== -->
+<main id="tab-datos" class="oculto">
+  <div class="card">
+    <h2>Quién registra</h2>
+    <div class="campo">
+      <label for="observador">Nombre</label>
+      <input id="observador" placeholder="Tu nombre" autocomplete="name">
+    </div>
+    <div class="nota">Va con cada observación y en el archivo que se exporta.</div>
+  </div>
+
+  <div class="card">
+    <h2>Mapa sin señal</h2>
+    <p class="nota" style="margin-top:0">En el predio casi nunca hay señal. Con internet (wifi de la oficina), guarda la imagen satelital
+      del predio en este celular. La lista, los datos de cada árbol, el GPS y la flecha funcionan sin señal aunque no guardes el mapa.</p>
+    <div id="estado-teselas" class="nota"></div>
+    <div class="barra-prog oculto" id="prog-teselas"><div></div></div>
+    <div class="fila-btn" style="margin-top:8px">
+      <button class="btn" id="b-teselas">Guardar mapa de este predio</button>
+      <button class="btn sec" id="b-teselas-todos">Guardar todos los predios</button>
+      <button class="btn peligro peq" id="b-teselas-borrar">Borrar mapas guardados</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Exportar observaciones</h2>
+    <p class="nota" style="margin-top:0">Las observaciones se guardan <b>solo en este celular</b>. Para pasarlas a la oficina, exporta el archivo y envíalo
+      (WhatsApp, correo) o súbelo a la carpeta del proyecto.</p>
+    <div class="fila-btn">
+      <button class="btn" id="b-csv-predio">Excel (CSV) de este predio</button>
+      <button class="btn sec" id="b-csv-todo">Excel (CSV) de todos</button>
+    </div>
+    <div id="resumen-obs" class="nota" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Respaldo</h2>
+    <p class="nota" style="margin-top:0">Copia completa de las observaciones en un archivo, para pasarlas a otro celular o guardarlas por si se borra el navegador.
+      Al importar se suman a las que ya hay; no se reemplaza nada.</p>
+    <div class="fila-btn">
+      <button class="btn sec" id="b-respaldo">Descargar respaldo (JSON)</button>
+      <label class="btn sec" for="f-importar" style="margin:0">Importar respaldo</label>
+      <input type="file" id="f-importar" accept=".json,application/json" class="oculto">
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>De dónde salen los datos</h2>
+    <p class="nota" style="margin-top:0">Los árboles y los polígonos del predio y la UMF son los del Excel de coordenadas (F-LAR-071) radicado ante
+      Corpoamazonía por cada aliado. La especie, el DAP, la altura y demás datos del árbol vienen de la base de la intranet (red de árboles
+      semilleros) y del catálogo de especies. Corte: <span id="corte"></span>.</p>
+    <div class="nota" id="estado-app"></div>
+  </div>
+</main>
+
+<!-- ===================== FICHA ===================== -->
+<div class="velo oculto" id="velo"></div>
+<div class="ficha oculto" id="ficha" role="dialog" aria-modal="true"></div>
+
+<div class="toast oculto" id="toast"></div>
+
+<script src="lib/leaflet.js"></script>
+<script src="arboles.js"></script>
+<script src="/actualizar.js"></script>
+<script>
+'use strict';
+
+/* ============================================================
+   Estado guardado en el celular
+   ------------------------------------------------------------
+   Todo vive en un solo objeto: observaciones por árbol y ajustes. Se guarda dos veces
+   (localStorage + IndexedDB) y al abrir se unen las dos copias, para que una visita no
+   se pierda si el navegador libera una de ellas. Las visitas nunca se borran de verdad:
+   se marcan «borrada», así la unión de dos copias no las resucita.
+   ============================================================ */
+const CLAVE = 'ae-piedemonte-v1';
+const TESELAS = 'ae-teselas';                 // caché de imágenes satelitales (no se borra al actualizar la app)
+const URL_TESELA = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+const ZOOM_MIN = 13, ZOOM_MAX = 18;           // Esri no tiene más detalle que 18 en la zona
+
+let estado = { obs: {}, cfg: { observador: '', predio: null }, teselas: {}, guardado: 0 };
+
+function abrirIDB() {
+  return new Promise((ok, mal) => {
+    if (!('indexedDB' in window)) return mal(new Error('sin IndexedDB'));
+    const r = indexedDB.open('ae-piedemonte', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => ok(r.result);
+    r.onerror = () => mal(r.error);
+  });
+}
+async function idbLeer() {
+  try {
+    const db = await abrirIDB();
+    return await new Promise((ok) => {
+      const q = db.transaction('kv').objectStore('kv').get(CLAVE);
+      q.onsuccess = () => ok(q.result || null); q.onerror = () => ok(null);
+    });
+  } catch { return null; }
+}
+async function idbEscribir(v) {
+  try {
+    const db = await abrirIDB();
+    db.transaction('kv', 'readwrite').objectStore('kv').put(v, CLAVE);
+  } catch { /* queda la copia de localStorage */ }
+}
+
+/* Une dos copias del estado: visitas por id (gana la más reciente), ajustes de la más nueva. */
+function unir(a, b) {
+  if (!a) return b; if (!b) return a;
+  const nuevo = (a.guardado || 0) >= (b.guardado || 0) ? a : b;
+  const r = { ...nuevo, obs: {}, teselas: { ...(b.teselas || {}), ...(a.teselas || {}) } };
+  const claves = new Set([...Object.keys(a.obs || {}), ...Object.keys(b.obs || {})]);
+  for (const k of claves) {
+    const m = new Map();
+    for (const v of [...((a.obs || {})[k] || []), ...((b.obs || {})[k] || [])]) {
+      const ya = m.get(v.id);
+      if (!ya || (v.mod || v.t) > (ya.mod || ya.t)) m.set(v.id, v);
+    }
+    r.obs[k] = [...m.values()].sort((x, y) => x.t.localeCompare(y.t));
+  }
+  return r;
+}
+
+async function cargar() {
+  let ls = null;
+  try { ls = JSON.parse(localStorage.getItem(CLAVE) || 'null'); } catch { ls = null; }
+  const idb = await idbLeer();
+  const u = unir(ls, idb);
+  if (u) estado = { ...estado, ...u, cfg: { ...estado.cfg, ...(u.cfg || {}) } };
+}
+function guardar() {
+  estado.guardado = Date.now();
+  try { localStorage.setItem(CLAVE, JSON.stringify(estado)); } catch { /* lleno: queda IndexedDB */ }
+  idbEscribir(estado);
+}
+
+/* ============================================================
+   Datos
+   ============================================================ */
+const POR_ID = Object.fromEntries(PREDIOS.map(p => [p.id, p]));
+let predio = null;            // predio elegido
+let tab = 'lista', filtro = 'todos', busqueda = '';
+let abierto = null;           // árbol de la ficha abierta
+
+const clave = (p, a) => p.id + '|' + a.c;
+const visitas = (p, a) => (estado.obs[clave(p, a)] || []).filter(v => !v.borrada);
+const ultima = (p, a) => { const v = visitas(p, a); return v[v.length - 1] || null; };
+const ficha = s => (s && ESPECIES[s]) || {};
+function nombreComun(a) {
+  if (a.n) return a.n;
+  const f = ficha(a.s);
+  return (f.nc && f.nc[0]) || (a.s ? a.s : 'Sin nombre');
+}
+const ESTADOS = { encontrado: 'Encontrado', no_encontrado: 'No encontrado', caido: 'Caído o muerto' };
+function claseEstado(p, a) {
+  const u = ultima(p, a);
+  if (!u) return '';
+  return u.estado === 'no_encontrado' || u.estado === 'caido' ? u.estado : 'visitado';
+}
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const sinTilde = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+/* ============================================================
+   GPS y brújula
+   ============================================================ */
+let yo = null;          // {lat, lon, prec, t}
+let rumboCel = null;    // hacia dónde apunta el celular (grados desde el norte), si hay brújula
+let vigiaGPS = null;
+
+function distancia(a, b) {
+  const R = 6371000, r = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * r, dLon = (b.lon - a.lon) * r;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function rumbo(a, b) {
+  const r = Math.PI / 180;
+  const y = Math.sin((b.lon - a.lon) * r) * Math.cos(b.lat * r);
+  const x = Math.cos(a.lat * r) * Math.sin(b.lat * r) - Math.sin(a.lat * r) * Math.cos(b.lat * r) * Math.cos((b.lon - a.lon) * r);
+  return (Math.atan2(y, x) / r + 360) % 360;
+}
+const PUNTOS_CARD = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+const cardinal = g => PUNTOS_CARD[Math.round(g / 45) % 8];
+const metros = d => d < 1000 ? Math.round(d) + ' m' : (d / 1000).toFixed(d < 10000 ? 2 : 1).replace('.', ',') + ' km';
+
+function iniciarGPS() {
+  if (!('geolocation' in navigator)) { pintarChip('mal', 'Sin GPS'); return; }
+  if (vigiaGPS !== null) return;
+  pintarChip('', 'Buscando…');
+  vigiaGPS = navigator.geolocation.watchPosition(pos => {
+    yo = { lat: pos.coords.latitude, lon: pos.coords.longitude, prec: pos.coords.accuracy, t: Date.now() };
+    const p = yo.prec;
+    pintarChip(p <= 15 ? 'ok' : p <= 40 ? 'medio' : 'mal', '±' + Math.round(p) + ' m');
+    alMoverme();
+  }, err => {
+    pintarChip('mal', err.code === 1 ? 'GPS sin permiso' : 'Sin GPS');
+    vigiaGPS !== null && navigator.geolocation.clearWatch(vigiaGPS); vigiaGPS = null;
+  }, { enableHighAccuracy: true, maximumAge: 3000, timeout: 30000 });
+}
+function pintarChip(clase, txt) {
+  const c = document.getElementById('chip-gps');
+  c.className = 'chip-gps ' + clase; c.querySelector('span').textContent = txt;
+}
+
+let ultimoPintado = 0;
+function alMoverme() {
+  pintarYoEnMapa();
+  if (abierto) pintarGuia();
+  // La lista se repinta como mucho cada 3 s para no saltar mientras se lee.
+  if (Date.now() - ultimoPintado > 3000 && tab === 'lista') { pintarLista(); }
+}
+
+function brujula() {
+  const escuchar = () => {
+    const absoluta = 'ondeviceorientationabsolute' in window;
+    window.addEventListener(absoluta ? 'deviceorientationabsolute' : 'deviceorientation', ev => {
+      let r = null;
+      if (typeof ev.webkitCompassHeading === 'number') r = ev.webkitCompassHeading;       // iPhone
+      else if (ev.absolute && typeof ev.alpha === 'number') r = (360 - ev.alpha) % 360;     // Android
+      if (r === null) return;
+      const ang = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+      rumboCel = (r + ang + 360) % 360;
+      if (abierto) pintarFlecha();
+    }, true);
+  };
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(r => { if (r === 'granted') escuchar(); else aviso('Sin permiso para la brújula.'); })
+      .catch(() => aviso('No se pudo activar la brújula.'));
+  } else escuchar();
+  estado.cfg.brujula = true;
+}
+
+/* ============================================================
+   Encabezado: predio y progreso
+   ============================================================ */
+function pintarSelector() {
+  const s = document.getElementById('sel-predio');
+  s.innerHTML = PREDIOS.map(p => {
+    const v = p.arboles.filter(a => ultima(p, a)).length;
+    return `<option value="${p.id}">${esc(p.nombre)} — ${p.arboles.length} árboles${v ? ' · ' + v + ' visitados' : ''}</option>`;
+  }).join('');
+  s.value = predio.id;
+}
+function pintarProgreso() {
+  const v = predio.arboles.filter(a => ultima(predio, a)).length;
+  document.getElementById('progreso').textContent = `${v}/${predio.arboles.length}`;
+  const op = document.querySelector(`#sel-predio option[value="${predio.id}"]`);
+  if (op) op.textContent = `${predio.nombre} — ${predio.arboles.length} árboles${v ? ' · ' + v + ' visitados' : ''}`;
+}
+function elegirPredio(id) {
+  predio = POR_ID[id] || PREDIOS[0];
+  estado.cfg.predio = predio.id; guardar();
+  pintarProgreso();
+  const av = document.getElementById('aviso-predio');
+  const lugar = [predio.vereda && 'Vereda ' + predio.vereda, predio.municipio].filter(Boolean).join(' · ');
+  av.innerHTML = (lugar ? `<div class="nota" style="margin-bottom:8px">${esc(lugar)}${predio.etiqueta && predio.etiqueta !== predio.nombre ? ' · en el Excel: «' + esc(predio.etiqueta) + '»' : ''}</div>` : '')
+    + (predio.fuente === 'base' ? `<div class="aviso"><b>Sin Excel de coordenadas.</b> ${esc(predio.nota || '')} Se muestran todos los árboles que la base tiene en este predio, con la coordenada de la base (menos precisa, ±10 m). Puede que no todos tengan permiso.</div>` : '');
+  pintarLista();
+  if (mapa) pintarCapas(true);
+  pintarEstadoTeselas();
+}
+
+/* ============================================================
+   Lista
+   ============================================================ */
+function arbolesFiltrados() {
+  const q = sinTilde(busqueda.trim());
+  let l = predio.arboles.filter(a => {
+    if (filtro === 'pendientes' && ultima(predio, a)) return false;
+    if (filtro === 'visitados' && !ultima(predio, a)) return false;
+    if (!q) return true;
+    if (/^\d+$/.test(q)) return a.c.startsWith(q);
+    const f = ficha(a.s);
+    return sinTilde([a.n, a.s, f.f, ...(f.nc || [])].join(' ')).includes(q);
+  });
+  if (filtro === 'cerca' && yo) l = l.slice().sort((x, y) => distancia(yo, x) - distancia(yo, y));
+  return l;
+}
+function pintarLista() {
+  ultimoPintado = Date.now();
+  const l = arbolesFiltrados();
+  const cont = document.getElementById('lista');
+  if (!l.length) {
+    cont.innerHTML = `<div class="vacio">${busqueda ? 'Ningún árbol coincide con la búsqueda.' : filtro === 'pendientes' ? 'Ya visitaste todos los árboles de este predio.' : 'No hay árboles en esta vista.'}</div>`;
+    return;
+  }
+  cont.innerHTML = l.map(a => {
+    const u = ultima(predio, a);
+    const est = u ? `${ESTADOS[u.estado] || 'Visitado'} · ${fechaCorta(u.t)}${u.texto ? ' · con observación' : ''}` : 'Por visitar';
+    let dist = '';
+    if (yo && a.lat) {
+      const d = distancia(yo, a), g = rumbo(yo, a);
+      const giro = rumboCel === null ? g : g - rumboCel;
+      dist = `<div class="dist">${metros(d)}<small><span class="flecha-mini" style="transform:rotate(${giro}deg)">↑</span> ${cardinal(g)}</small></div>`;
+    }
+    return `<button class="arbol ${claseEstado(predio, a)}" data-c="${esc(a.c)}">
+      <div class="placa">${esc(a.c)}</div>
+      <div class="info"><div class="comun">${esc(nombreComun(a))}</div>
+        <div class="cient">${a.s ? esc(a.s) + (a.pend ? ' (por confirmar)' : '') : '—'}</div>
+        <div class="estado">${est}</div></div>${dist}</button>`;
+  }).join('');
+}
+
+/* ============================================================
+   Ficha del árbol
+   ============================================================ */
+const FLECHA = '<svg viewBox="0 0 24 24" fill="#e1a644"><path d="M12 2 L19 20 L12 16 L5 20 Z"/></svg>';
+let estadoElegido = 'encontrado';
+
+function abrirFicha(c) {
+  const a = predio.arboles.find(x => x.c === c);
+  if (!a) return;
+  abierto = a; estadoElegido = 'encontrado';
+  const f = ficha(a.s);
+  const dato = (t, v, suf = '') => (v === undefined || v === null || v === '') ? '' : `<div class="dato"><b>${t}</b><span>${esc(typeof v === 'number' ? v.toLocaleString('es-CO') : v)}${suf}</span></div>`;
+  const etq = [];
+  if (a.pend) etq.push('<span class="etiqueta">Especie por confirmar</span>');
+  if (f.iucn) etq.push(`<span class="etiqueta ${['CR', 'EN', 'VU'].includes(f.iucn) ? 'roja' : ''}">UICN ${esc(f.iucn)}</span>`);
+  if (f.cites && !/^n\/?a$/i.test(f.cites)) etq.push(`<span class="etiqueta">CITES ${esc(f.cites)}</span>`);
+  if (f.amenaza) etq.push(`<span class="etiqueta roja">${esc(f.amenaza)}</span>`);
+  if (!a.en_base) etq.push('<span class="etiqueta roja">No está en la base</span>');
+
+  const difBase = a.lat_b && a.lat ? distancia(a, { lat: a.lat_b, lon: a.lon_b }) : 0;
+  const datosArbol = [
+    dato('DAP', a.d, ' cm'), dato('CAP', a.cap, ' cm'), dato('Altura total', a.h, ' m'), dato('Altura comercial', a.hc, ' m'),
+    dato('Copa', a.copa), dato('Fuste', a.fuste), dato('Cobertura', a.cob), dato('Suelo', a.suelo),
+    dato('Pendiente', a.pdte), dato('Drenaje', a.dren), dato('Registrado', a.fr ? fechaCorta(a.fr) : ''),
+    dato('Verificación', a.ver),
+  ].join('');
+
+  document.getElementById('ficha').innerHTML = `
+    <div class="asa">
+      <div class="titulo">
+        <div class="placa">${esc(a.c)}</div>
+        <div><h2>${esc(nombreComun(a))}</h2>
+          <div class="cient">${a.s ? esc(a.s) : 'Especie sin registrar'}${f.f ? ' · ' + esc(f.f) : ''}</div></div>
+      </div>
+      <button class="cerrar" id="b-cerrar" aria-label="Cerrar">×</button>
+    </div>
+    ${etq.length ? `<div>${etq.join('')}</div>` : ''}
+
+    <div class="guia" id="guia">
+      <div class="flecha" id="flecha">${FLECHA}</div>
+      <div><div class="metros" id="g-metros">—</div><div class="rumbo" id="g-rumbo">Esperando el GPS…</div></div>
+    </div>
+    <div class="fila-btn">
+      <button class="btn sec peq" id="b-ver-mapa">Ver en el mapa</button>
+      ${estado.cfg.brujula ? '' : '<button class="btn sec peq" id="b-brujula">Activar brújula</button>'}
+      <a class="btn sec peq" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${a.lat},${a.lon}">Google Maps</a>
+      <button class="btn sec peq" id="b-copiar">Copiar coordenadas</button>
+    </div>
+    <div class="nota" style="margin-top:6px">${a.lat.toFixed(6)}, ${a.lon.toFixed(6)} · ${gms(a.lat, 'N', 'S')} ${gms(a.lon, 'E', 'O')}
+      ${difBase > 15 ? `<br><b>Ojo:</b> la base tiene este árbol a ${metros(difBase)} de la coordenada del Excel.` : ''}
+      ${a.otro_predio ? `<br><b>Ojo:</b> en la base este código está en el predio «${esc(a.otro_predio)}».` : ''}</div>
+
+    <div class="seccion">
+      <h3>Visita</h3>
+      <div class="estados" id="estados">
+        ${Object.entries(ESTADOS).map(([k, t]) => `<button data-e="${k}" class="${k === estadoElegido ? 'activo' : ''}">${t}</button>`).join('')}
+      </div>
+      <textarea id="obs-texto" placeholder="Observaciones: estado del árbol, floración o fruto, acceso, si hay que volver…"></textarea>
+      <label class="check"><input type="checkbox" id="obs-gps" checked> Guardar mi ubicación con la visita</label>
+      <button class="btn ambar" id="b-guardar-obs" style="width:100%">Guardar visita</button>
+      <div id="historial" style="margin-top:10px"></div>
+    </div>
+
+    <div class="seccion">
+      <h3>Datos del árbol</h3>
+      ${datosArbol ? `<div class="datos">${datosArbol}</div>` : '<div class="nota">La base no tiene medidas de este árbol.</div>'}
+      ${a.asoc ? `<div class="nota" style="margin-top:6px"><b>Especies asociadas:</b> ${esc(a.asoc)}</div>` : ''}
+      ${a.obs_base ? `<div class="nota" style="margin-top:6px"><b>Observaciones en la base:</b> ${esc(a.obs_base)}</div>` : ''}
+      ${a.obs_excel ? `<div class="nota" style="margin-top:6px"><b>Observaciones en el Excel:</b> ${esc(a.obs_excel)}</div>` : ''}
+    </div>
+
+    ${a.s && Object.keys(f).length ? `<div class="seccion">
+      <h3>La especie</h3>
+      <div class="datos">
+        ${f.nc && f.nc.length ? dato('Otros nombres', f.nc.join(', ')) : ''}
+        ${dato('Hábito', f.habito)}${dato('Dispersión', f.dispersion)}${dato('Sucesión', f.rol)}
+      </div>
+      ${f.usos && f.usos.length ? `<div style="margin-top:6px">${f.usos.map(u => `<span class="etiqueta verde">${esc(u)}</span>`).join('')}</div>` : ''}
+      ${f.desc ? `<details style="margin-top:8px"><summary>Cómo reconocerla</summary>${esc(f.desc)}</details>` : ''}
+    </div>` : ''}
+  `;
+  document.getElementById('velo').classList.remove('oculto');
+  document.getElementById('ficha').classList.remove('oculto');
+  document.getElementById('ficha').scrollTop = 0;
+  document.getElementById('b-cerrar').onclick = cerrarFicha;
+  document.getElementById('b-ver-mapa').onclick = () => { cerrarFicha(); irTab('mapa'); setTimeout(() => centrarEn(a), 80); };
+  const bb = document.getElementById('b-brujula'); if (bb) bb.onclick = () => { brujula(); bb.remove(); guardar(); };
+  document.getElementById('b-copiar').onclick = () => copiar(`${a.lat.toFixed(6)}, ${a.lon.toFixed(6)}`);
+  document.querySelectorAll('#estados button').forEach(b => b.onclick = () => {
+    estadoElegido = b.dataset.e;
+    document.querySelectorAll('#estados button').forEach(x => x.classList.toggle('activo', x === b));
+  });
+  document.getElementById('b-guardar-obs').onclick = guardarVisita;
+  pintarHistorial(); pintarGuia(); resaltarEnMapa();
+}
+function cerrarFicha() {
+  const t = document.getElementById('obs-texto');
+  if (t && t.value.trim() && !confirm('Hay una observación sin guardar. ¿Cerrar y perderla?')) return;
+  abierto = null;
+  document.getElementById('velo').classList.add('oculto');
+  document.getElementById('ficha').classList.add('oculto');
+  resaltarEnMapa();
+}
+function pintarGuia() {
+  if (!abierto) return;
+  const m = document.getElementById('g-metros'), r = document.getElementById('g-rumbo');
+  if (!yo) { m.textContent = '—'; r.textContent = vigiaGPS === null ? 'Activa la ubicación (botón GPS arriba)' : 'Esperando el GPS…'; pintarFlecha(); return; }
+  const d = distancia(yo, abierto), g = rumbo(yo, abierto);
+  m.textContent = metros(d);
+  const cerca = d <= Math.max(10, yo.prec);
+  r.innerHTML = cerca ? `Estás junto al árbol (GPS ±${Math.round(yo.prec)} m)`
+    : `Hacia el ${cardinal(g)} (${Math.round(g)}°) · GPS ±${Math.round(yo.prec)} m` + (rumboCel === null ? '<br>La flecha marca el norte arriba' : '');
+  pintarFlecha();
+}
+function pintarFlecha() {
+  const svg = document.querySelector('#flecha svg');
+  if (!svg || !abierto) return;
+  if (!yo) { svg.style.opacity = .3; svg.style.transform = 'none'; return; }
+  svg.style.opacity = 1;
+  const g = rumbo(yo, abierto);
+  svg.style.transform = `rotate(${rumboCel === null ? g : g - rumboCel}deg)`;
+}
+function pintarHistorial() {
+  const v = visitas(predio, abierto).slice().reverse();
+  document.getElementById('historial').innerHTML = v.length ? '<h3 style="font-size:.85rem;margin:6px 0">Visitas anteriores</h3>' + v.map(x => `
+    <div class="visita ${x.estado || ''}">
+      <div class="cab"><span>${esc(ESTADOS[x.estado] || 'Visita')} · ${fechaLarga(x.t)}${x.quien ? ' · ' + esc(x.quien) : ''}</span>
+        <button class="borrar-visita" data-id="${x.id}">Borrar</button></div>
+      ${x.texto ? `<div class="txt">${esc(x.texto)}</div>` : ''}
+      ${x.lat ? `<div class="nota">Ubicación: ${x.lat.toFixed(6)}, ${x.lon.toFixed(6)} (±${Math.round(x.prec || 0)} m) · a ${metros(distancia(x, abierto))} del árbol</div>` : ''}
+    </div>`).join('') : '';
+  document.querySelectorAll('.borrar-visita').forEach(b => b.onclick = () => {
+    if (!confirm('¿Borrar esta visita?')) return;
+    const l = estado.obs[clave(predio, abierto)] || [];
+    const x = l.find(y => y.id === b.dataset.id);
+    if (x) { x.borrada = true; x.mod = new Date().toISOString(); }
+    guardar(); pintarHistorial(); refrescarTodo();
+  });
+}
+function guardarVisita() {
+  const texto = document.getElementById('obs-texto').value.trim();
+  const conGPS = document.getElementById('obs-gps').checked;
+  const v = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), t: new Date().toISOString(),
+    estado: estadoElegido, texto, quien: estado.cfg.observador || '' };
+  if (conGPS && yo && Date.now() - yo.t < 120000) { v.lat = +yo.lat.toFixed(7); v.lon = +yo.lon.toFixed(7); v.prec = Math.round(yo.prec); }
+  const k = clave(predio, abierto);
+  (estado.obs[k] = estado.obs[k] || []).push(v);
+  guardar();
+  document.getElementById('obs-texto').value = '';
+  aviso(conGPS && !v.lat ? 'Visita guardada (sin ubicación: el GPS no tenía señal)' : 'Visita guardada');
+  if (!estado.cfg.observador) aviso('Visita guardada. Pon tu nombre en «Datos» para que salga en el registro.');
+  pintarHistorial(); refrescarTodo();
+}
+function refrescarTodo() { pintarProgreso(); pintarLista(); if (mapa) pintarCapas(false); }
+
+/* ============================================================
+   Mapa
+   ============================================================ */
+let mapa = null, capaArboles = null, capaPoligonos = null, marcaYo = null, circuloYo = null, lineaGuia = null;
+const marcas = {};
+
+function crearMapa() {
+  mapa = L.map('mapa', { zoomControl: false, attributionControl: true, maxZoom: 21 });
+  L.control.zoom({ position: 'bottomright' }).addTo(mapa);
+  L.tileLayer(URL_TESELA, { minZoom: 5, maxNativeZoom: ZOOM_MAX, maxZoom: 21,
+    attribution: 'Imagen © Esri, Maxar, Earthstar Geographics' }).addTo(mapa);
+  capaPoligonos = L.layerGroup().addTo(mapa);
+  capaArboles = L.layerGroup().addTo(mapa);
+  mapa.on('zoomend', () => document.getElementById('mapa').classList.toggle('cerca', mapa.getZoom() >= 17));
+  pintarCapas(true);
+}
+function colorArbol(a) {
+  const c = claseEstado(predio, a);
+  return c === 'visitado' ? '#3f8a4f' : c ? '#b24444' : '#e1a644';
+}
+function pintarCapas(encuadrar) {
+  capaPoligonos.clearLayers(); capaArboles.clearLayers();
+  for (const k in marcas) delete marcas[k];
+  for (const pol of predio.poligonos) {
+    const umf = pol.tipo === 'umf';
+    L.polygon(pol.coords, umf
+      ? { color: '#ffffff', weight: 2, dashArray: '6 6', fillColor: '#ffffff', fillOpacity: .08, interactive: false }
+      : { color: '#e1a644', weight: 3, fill: false, interactive: false }).addTo(capaPoligonos)
+      .bindTooltip(pol.nombre, { sticky: true });
+  }
+  for (const a of predio.arboles) {
+    if (!a.lat) continue;
+    const m = L.circleMarker([a.lat, a.lon], { radius: 8, color: '#fff', weight: 2, fillColor: colorArbol(a), fillOpacity: 1 })
+      .bindTooltip(a.c, { permanent: true, direction: 'right', offset: [8, 0], className: 'etq-codigo' })
+      .on('click', () => abrirFicha(a.c));
+    m.addTo(capaArboles); marcas[a.c] = m;
+  }
+  resaltarEnMapa();
+  if (encuadrar) verPredio();
+  avisoMapa();
+}
+function limitesPredio() {
+  const pts = [...predio.poligonos.flatMap(p => p.coords), ...predio.arboles.filter(a => a.lat).map(a => [a.lat, a.lon])];
+  return pts.length ? L.latLngBounds(pts) : null;
+}
+function verPredio() {
+  const b = limitesPredio();
+  if (b) mapa.fitBounds(b.pad(0.08), { maxZoom: 18 });
+}
+function centrarEn(a) { if (mapa) { mapa.setView([a.lat, a.lon], Math.max(mapa.getZoom(), 18)); } }
+function resaltarEnMapa() {
+  if (!mapa) return;
+  for (const [c, m] of Object.entries(marcas)) {
+    const sel = abierto && abierto.c === c;
+    m.setStyle({ radius: sel ? 12 : 8, weight: sel ? 3 : 2, color: sel ? '#2f3f32' : '#fff' });
+    if (sel) m.bringToFront();
+  }
+  pintarLineaGuia();
+}
+function pintarYoEnMapa() {
+  if (!mapa || !yo) return;
+  const ll = [yo.lat, yo.lon];
+  if (!marcaYo) {
+    circuloYo = L.circle(ll, { radius: yo.prec, color: '#2f7de1', weight: 1, fillOpacity: .12, interactive: false }).addTo(mapa);
+    marcaYo = L.circleMarker(ll, { radius: 7, color: '#fff', weight: 2, fillColor: '#2f7de1', fillOpacity: 1, interactive: false }).addTo(mapa);
+  } else { marcaYo.setLatLng(ll); circuloYo.setLatLng(ll).setRadius(yo.prec); }
+  pintarLineaGuia();
+}
+function pintarLineaGuia() {
+  if (!mapa) return;
+  if (lineaGuia) { mapa.removeLayer(lineaGuia); lineaGuia = null; }
+  if (abierto && yo) lineaGuia = L.polyline([[yo.lat, yo.lon], [abierto.lat, abierto.lon]], { color: '#2f7de1', weight: 2, dashArray: '4 6', interactive: false }).addTo(mapa);
+}
+function avisoMapa() {
+  const el = document.getElementById('aviso-mapa');
+  const t = estado.teselas[predio.id];
+  if (!navigator.onLine && !t) {
+    el.textContent = 'Sin señal y sin mapa guardado de este predio: se ven los árboles y los polígonos, pero no la imagen satelital.';
+    el.classList.remove('oculto');
+  } else el.classList.add('oculto');
+}
+
+/* ============================================================
+   Mapa sin señal: guardar teselas del predio
+   ============================================================ */
+const lon2x = (lon, z) => Math.floor((lon + 180) / 360 * 2 ** z);
+const lat2y = (lat, z) => { const r = lat * Math.PI / 180; return Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * 2 ** z); };
+function teselasDe(p) {
+  const pts = [...p.poligonos.flatMap(x => x.coords), ...p.arboles.filter(a => a.lat).map(a => [a.lat, a.lon])];
+  if (!pts.length) return [];
+  const m = 0.0025;   // ~280 m de margen alrededor
+  const s = Math.min(...pts.map(x => x[0])) - m, n = Math.max(...pts.map(x => x[0])) + m;
+  const o = Math.min(...pts.map(x => x[1])) - m, e = Math.max(...pts.map(x => x[1])) + m;
+  const urls = [];
+  for (let z = ZOOM_MIN; z <= ZOOM_MAX; z++) {
+    for (let x = lon2x(o, z); x <= lon2x(e, z); x++)
+      for (let y = lat2y(n, z); y <= lat2y(s, z); y++)
+        urls.push(URL_TESELA.replace('{z}', z).replace('{x}', x).replace('{y}', y));
+  }
+  return urls;
+}
+let descargando = false;
+async function guardarTeselas(lista) {
+  if (descargando) return;
+  if (!('caches' in window)) { aviso('Este navegador no permite guardar el mapa.'); return; }
+  if (!navigator.onLine) { aviso('Necesitas internet para guardar el mapa.'); return; }
+  descargando = true;
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  const cache = await caches.open(TESELAS);
+  const trabajos = lista.map(p => ({ p, urls: teselasDe(p) }));
+  const total = trabajos.reduce((s, t) => s + t.urls.length, 0);
+  const barra = document.getElementById('prog-teselas'); barra.classList.remove('oculto');
+  const est = document.getElementById('estado-teselas');
+  let hechas = 0, fallas = 0;
+  document.querySelectorAll('#b-teselas,#b-teselas-todos').forEach(b => b.disabled = true);
+  for (const { p, urls } of trabajos) {
+    let ok = 0, i = 0;
+    const obrero = async () => {
+      while (i < urls.length) {
+        const u = urls[i++];
+        try {
+          if (!(await cache.match(u))) {
+            const r = await fetch(u, { mode: 'cors' });
+            if (!r.ok) throw new Error(r.status);
+            await cache.put(u, r);
+          }
+          ok++;
+        } catch { fallas++; }
+        hechas++;
+        if (hechas % 5 === 0 || hechas === total) {
+          barra.firstElementChild.style.width = (100 * hechas / total) + '%';
+          est.textContent = `Guardando ${p.nombre}: ${hechas} de ${total} imágenes…`;
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: 6 }, obrero));
+    estado.teselas[p.id] = { n: ok, total: urls.length, fecha: new Date().toISOString() };
+    guardar();
+  }
+  descargando = false;
+  document.querySelectorAll('#b-teselas,#b-teselas-todos').forEach(b => b.disabled = false);
+  barra.classList.add('oculto');
+  pintarEstadoTeselas();
+  aviso(fallas ? `Mapa guardado, pero ${fallas} imágenes no bajaron. Vuelve a intentarlo con mejor conexión.` : 'Mapa guardado en el celular.');
+  if (mapa) avisoMapa();
+}
+function pintarEstadoTeselas() {
+  const t = estado.teselas[predio.id];
+  const n = Object.keys(estado.teselas).length;
+  document.getElementById('estado-teselas').innerHTML = (t
+    ? `<b>${esc(predio.nombre)}:</b> mapa guardado el ${fechaCorta(t.fecha)} (${t.n} de ${t.total} imágenes).`
+    : `<b>${esc(predio.nombre)}:</b> sin mapa guardado (${teselasDe(predio).length} imágenes, unos ${Math.round(teselasDe(predio).length * 22 / 1024)} MB).`)
+    + (n ? ` Predios con mapa guardado: ${n} de ${PREDIOS.length}.` : '');
+}
+
+/* ============================================================
+   Exportar
+   ============================================================ */
+function filasCSV(lista) {
+  const cab = ['predio', 'vereda', 'municipio', 'codigo', 'nombre_comun', 'nombre_cientifico', 'especie_por_confirmar', 'familia',
+    'latitud_arbol', 'longitud_arbol', 'fecha_visita', 'estado', 'observacion', 'registra', 'latitud_visita', 'longitud_visita',
+    'precision_m', 'distancia_al_arbol_m'];
+  const filas = [cab];
+  for (const p of lista) for (const a of p.arboles) {
+    const base = [p.nombre, p.vereda || '', p.municipio || '', a.c, nombreComun(a), a.s || '', a.pend ? 'si' : '', ficha(a.s).f || '', a.lat, a.lon];
+    const v = visitas(p, a);
+    if (!v.length) { filas.push([...base, '', 'por visitar', '', '', '', '', '', '']); continue; }
+    for (const x of v) filas.push([...base, fechaLarga(x.t), ESTADOS[x.estado] || '', x.texto || '', x.quien || '',
+      x.lat ?? '', x.lon ?? '', x.prec ?? '', x.lat ? Math.round(distancia(x, a)) : '']);
+  }
+  // Punto y coma y coma decimal: Excel en español lo abre en columnas y no lee 1.524692 como un millón.
+  return '﻿' + filas.map(f => f.map(c => {
+    const s = (typeof c === 'number' ? String(c).replace('.', ',') : String(c ?? '')).replace(/\r?\n/g, ' ');
+    return /[;"]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }).join(';')).join('\r\n');
+}
+function descargar(nombre, contenido, tipo) {
+  const url = URL.createObjectURL(new Blob([contenido], { type: tipo }));
+  const a = document.createElement('a'); a.href = url; a.download = nombre;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+const hoyArchivo = () => new Date().toISOString().slice(0, 10);
+function pintarResumen() {
+  let n = 0, arb = 0;
+  for (const p of PREDIOS) for (const a of p.arboles) { const v = visitas(p, a).length; n += v; if (v) arb++; }
+  document.getElementById('resumen-obs').textContent = n ? `En este celular: ${n} visitas a ${arb} árboles.` : 'Todavía no hay visitas guardadas en este celular.';
+}
+
+/* ============================================================
+   Utilidades
+   ============================================================ */
+function fechaCorta(t) { return new Date(t.length === 10 ? t + 'T12:00' : t).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }); }
+function fechaLarga(t) { return new Date(t).toLocaleString('es-CO', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+function gms(v, pos, neg) {
+  const s = v < 0 ? neg : pos; v = Math.abs(v);
+  const g = Math.floor(v), m = Math.floor((v - g) * 60), sg = ((v - g) * 60 - m) * 60;
+  return `${g}°${m}′${sg.toFixed(1).replace('.', ',')}″${s}`;
+}
+let tToast = null;
+function aviso(t) {
+  const el = document.getElementById('toast'); el.textContent = t; el.classList.remove('oculto');
+  clearTimeout(tToast); tToast = setTimeout(() => el.classList.add('oculto'), 3200);
+}
+function copiar(t) {
+  (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => aviso('Coordenadas copiadas'))
+    .catch(() => prompt('Copia las coordenadas:', t));
+}
+function irTab(t) {
+  tab = t;
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('activa', b.dataset.tab === t));
+  document.getElementById('tab-lista').classList.toggle('oculto', t !== 'lista');
+  document.getElementById('tab-mapa').classList.toggle('oculto', t !== 'mapa');
+  document.getElementById('tab-datos').classList.toggle('oculto', t !== 'datos');
+  if (t === 'mapa') {
+    ajustarAlto();
+    if (!mapa) crearMapa(); else mapa.invalidateSize();
+    pintarYoEnMapa(); avisoMapa();
+  }
+  if (t === 'lista') pintarLista();
+  if (t === 'datos') { pintarResumen(); pintarEstadoTeselas(); }
+}
+function ajustarAlto() {
+  document.documentElement.style.setProperty('--alto-cab', document.getElementById('cabecera').offsetHeight + 'px');
+}
+
+/* ============================================================
+   Arranque
+   ============================================================ */
+(async function () {
+  await cargar();
+  document.getElementById('corte').textContent = fechaCorta(CORTE);
+  predio = POR_ID[estado.cfg.predio] || PREDIOS[0];
+  pintarSelector();
+  elegirPredio(predio.id);
+
+  document.getElementById('sel-predio').onchange = e => { elegirPredio(e.target.value); if (tab === 'mapa') mapa.invalidateSize(); };
+  document.querySelectorAll('nav button').forEach(b => b.onclick = () => irTab(b.dataset.tab));
+  document.getElementById('buscar').oninput = e => { busqueda = e.target.value; pintarLista(); };
+  document.querySelectorAll('.filtro').forEach(b => b.onclick = () => {
+    if (b.dataset.f === 'cerca' && !yo) { iniciarGPS(); aviso('Esperando el GPS para ordenar por distancia…'); }
+    filtro = filtro === b.dataset.f && b.dataset.f === 'cerca' ? 'todos' : b.dataset.f;
+    document.querySelectorAll('.filtro').forEach(x => x.classList.toggle('activo', x.dataset.f === filtro));
+    pintarLista();
+  });
+  document.getElementById('lista').onclick = e => { const b = e.target.closest('.arbol'); if (b) abrirFicha(b.dataset.c); };
+  document.getElementById('velo').onclick = cerrarFicha;
+  document.getElementById('chip-gps').onclick = () => {
+    if (vigiaGPS === null) iniciarGPS();
+    else if (yo) aviso(`Tu ubicación: ${yo.lat.toFixed(6)}, ${yo.lon.toFixed(6)} (±${Math.round(yo.prec)} m)`);
+  };
+  document.getElementById('b-yo').onclick = () => { if (yo) mapa.setView([yo.lat, yo.lon], Math.max(mapa.getZoom(), 17)); else { iniciarGPS(); aviso('Buscando tu ubicación…'); } };
+  document.getElementById('b-predio').onclick = verPredio;
+
+  const obsv = document.getElementById('observador');
+  obsv.value = estado.cfg.observador || '';
+  obsv.onchange = () => { estado.cfg.observador = obsv.value.trim(); guardar(); aviso('Nombre guardado'); };
+  document.getElementById('b-teselas').onclick = () => guardarTeselas([predio]);
+  document.getElementById('b-teselas-todos').onclick = () => {
+    const n = PREDIOS.reduce((s, p) => s + teselasDe(p).length, 0);
+    if (confirm(`Son ${n} imágenes (unos ${Math.round(n * 22 / 1024)} MB). Hazlo con wifi. ¿Seguir?`)) guardarTeselas(PREDIOS);
+  };
+  document.getElementById('b-teselas-borrar').onclick = async () => {
+    if (!confirm('¿Borrar del celular los mapas guardados? Los árboles y las observaciones no se tocan.')) return;
+    if ('caches' in window) await caches.delete(TESELAS);
+    estado.teselas = {}; guardar(); pintarEstadoTeselas(); aviso('Mapas borrados');
+  };
+  document.getElementById('b-csv-predio').onclick = () => descargar(`arboles_${predio.id}_${hoyArchivo()}.csv`, filasCSV([predio]), 'text/csv;charset=utf-8');
+  document.getElementById('b-csv-todo').onclick = () => descargar(`arboles_piedemonte_${hoyArchivo()}.csv`, filasCSV(PREDIOS), 'text/csv;charset=utf-8');
+  document.getElementById('b-respaldo').onclick = () => descargar(`respaldo_arboles_piedemonte_${hoyArchivo()}.json`,
+    JSON.stringify({ app: 'ae-piedemonte', version: 1, exportado: new Date().toISOString(), obs: estado.obs }, null, 1), 'application/json');
+  document.getElementById('f-importar').onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const d = JSON.parse(await f.text());
+      if (d.app !== 'ae-piedemonte' || !d.obs) throw new Error('no es un respaldo de esta app');
+      const antes = Object.values(estado.obs).flat().length;
+      estado = unir(estado, { obs: d.obs, guardado: 0 });
+      guardar();
+      aviso(`Respaldo importado: ${Object.values(estado.obs).flat().length - antes} visitas nuevas.`);
+      pintarSelector(); refrescarTodo(); pintarResumen();
+    } catch (err) { aviso('No se pudo importar: ' + err.message); }
+    e.target.value = '';
+  };
+
+  window.addEventListener('resize', ajustarAlto);
+  window.addEventListener('online', () => mapa && avisoMapa());
+  window.addEventListener('offline', () => mapa && avisoMapa());
+  window.aeAntesDeActualizar = () => guardar();
+  if (estado.cfg.brujula && !(typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission)) brujula();
+  iniciarGPS();
+  ajustarAlto();
+  const total = PREDIOS.reduce((s, p) => s + p.arboles.length, 0);
+  document.getElementById('estado-app').textContent = `${PREDIOS.length} predios · ${total} árboles · ${Object.keys(ESPECIES).length} especies del catálogo.`;
+})();
+</script>
+</body>
+</html>
