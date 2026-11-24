@@ -73,6 +73,7 @@
   .buscador input{flex:1; min-width:0; padding:10px 12px; border:1px solid var(--borde); border-radius:9px; font-size:.95rem; background:#fff;}
   .filtros{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;}
   .filtro{border:1px solid var(--borde); background:#fff; border-radius:999px; padding:5px 12px; font-size:.8rem; cursor:pointer; color:var(--texto);}
+  .arbol .falta{font-size:.75rem; color:#a33; margin-top:2px;}
   .filtro.activo{background:var(--verde); border-color:var(--verde); color:var(--hueso);}
   .arbol{display:flex; align-items:center; gap:12px; background:#fff; border:1px solid var(--borde); border-radius:12px;
     padding:10px 12px; margin-bottom:8px; cursor:pointer; width:100%; text-align:left; color:inherit;}
@@ -197,6 +198,7 @@
     <button class="filtro" data-f="pendientes">Por visitar</button>
     <button class="filtro" data-f="visitados">Visitados</button>
     <button class="filtro" data-f="cerca" id="f-cerca" title="Ordena por distancia a tu ubicación">Más cerca</button>
+    <button class="filtro" data-f="faltan" title="Árboles que no están en la base o les falta DAP, altura o especie">Sin datos / incompletos</button>
   </div>
   <div id="lista"></div>
 </main>
@@ -484,11 +486,22 @@ function elegirPredio(id) {
 /* ============================================================
    Lista
    ============================================================ */
+/* Qué le falta al árbol en la base de datos (filtro «Sin datos / incompletos»). */
+function faltantes(a) {
+  if (!a.en_base) return ['sin datos en la base'];
+  const f = [];
+  if (!a.d) f.push('DAP');
+  if (!a.h) f.push('altura total');
+  if (!a.hc) f.push('altura fuste comercial');
+  if (!a.s) f.push('especie');
+  return f;
+}
 function arbolesFiltrados() {
   const q = sinTilde(busqueda.trim());
   let l = predio.arboles.filter(a => {
     if (filtro === 'pendientes' && ultima(predio, a)) return false;
     if (filtro === 'visitados' && !ultima(predio, a)) return false;
+    if (filtro === 'faltan' && !faltantes(a).length) return false;
     if (!q) return true;
     if (/^\d+$/.test(q)) return a.c.startsWith(q);
     const f = ficha(a.s);
@@ -502,7 +515,7 @@ function pintarLista() {
   const l = arbolesFiltrados();
   const cont = document.getElementById('lista');
   if (!l.length) {
-    cont.innerHTML = `<div class="vacio">${busqueda ? 'Ningún árbol coincide con la búsqueda.' : filtro === 'pendientes' ? 'Ya visitaste todos los árboles de este predio.' : 'No hay árboles en esta vista.'}</div>`;
+    cont.innerHTML = `<div class="vacio">${busqueda ? 'Ningún árbol coincide con la búsqueda.' : filtro === 'pendientes' ? 'Ya visitaste todos los árboles de este predio.' : filtro === 'faltan' ? 'Todos los árboles de este predio tienen sus datos completos.' : 'No hay árboles en esta vista.'}</div>`;
     return;
   }
   cont.innerHTML = l.map(a => {
@@ -518,7 +531,7 @@ function pintarLista() {
       <div class="placa">${esc(a.c)}</div>
       <div class="info"><div class="comun">${esc(nombreComun(a))}</div>
         <div class="cient">${a.s ? esc(a.s) + (a.pend ? ' (por confirmar)' : '') : '—'}</div>
-        <div class="estado">${est}</div></div>${dist}</button>`;
+        <div class="estado">${est}</div>${filtro === 'faltan' ? `<div class="falta">Falta: ${esc(faltantes(a).join(', '))}</div>` : ''}</div>${dist}</button>`;
   }).join('');
 }
 
@@ -540,10 +553,11 @@ function abrirFicha(c) {
   if (f.cites && !/^n\/?a$/i.test(f.cites)) etq.push(`<span class="etiqueta">CITES ${esc(f.cites)}</span>`);
   if (f.amenaza) etq.push(`<span class="etiqueta roja">${esc(f.amenaza)}</span>`);
   if (!a.en_base) etq.push('<span class="etiqueta roja">No está en la base</span>');
+  else if (faltantes(a).length) etq.push(`<span class="etiqueta roja">Falta: ${esc(faltantes(a).join(', '))}</span>`);
 
   const difBase = a.lat_b && a.lat ? distancia(a, { lat: a.lat_b, lon: a.lon_b }) : 0;
   const datosArbol = [
-    dato('DAP', a.d, ' cm'), dato('CAP', a.cap, ' cm'), dato('Altura total', a.h, ' m'), dato('Altura comercial', a.hc, ' m'),
+    dato('DAP', a.d, ' cm'), dato('CAP', a.cap, ' cm'), dato('Altura total', a.h, ' m'), dato('Altura fuste comercial', a.hc, ' m'),
     dato('Copa', a.copa), dato('Fuste', a.fuste), dato('Cobertura', a.cob), dato('Suelo', a.suelo),
     dato('Pendiente', a.pdte), dato('Drenaje', a.dren), dato('Registrado', a.fr ? fechaCorta(a.fr) : ''),
     dato('Verificación', a.ver),

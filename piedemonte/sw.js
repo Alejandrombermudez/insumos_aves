@@ -2,7 +2,7 @@
    Sube VERSION cuando cambies algo de esta carpeta. La lógica está en /sw-comun.js. */
 
 const APP = 'piedemonte';
-const VERSION = 'ae-piedemonte-v1';
+const VERSION = 'ae-piedemonte-v2';
 
 /* El primero es la entrada: lo que se muestra si se navega sin red. */
 const PRECARGA = [
